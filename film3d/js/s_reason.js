@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { scene3 } from './engine3d.js';
 import { C, holo, polyline, glow, spark, grid, figure, pointCloud, camKeys, shake, word, callout, label, lineMat, U } from './holo.js';
 import { euclid3D } from './s_open.js';
+import { model } from './models.js';
 
 function column(color) {
   const g = new THREE.Group();
@@ -64,44 +65,29 @@ scene3('reason', async () => {
   floor.position.y = FLOOR;
   scene.add(floor);
 
-  const cols = [];
-  for (let i = 0; i < 8; i++) for (const x of [-3.4, 3.4]) {
-    const c = column(i % 3 === 1 ? C.gold : C.cyan);
-    c.position.set(x, FLOOR, -2 - i * 4);
-    c.i = i;
-    scene.add(c);
-    cols.push(c);
-  }
-  const ribs = [];
-  for (let i = 0; i < 8; i++) {
-    const tor = new THREE.TorusGeometry(3.4, 0.14, 6, 48, Math.PI);
-    const r = holo(tor, { color: C.cyan, base: 0.1, threshold: 30, points: false });
-    r.position.set(0, FLOOR + 5.65, -2 - i * 4);
-    r.i = i;
-    scene.add(r);
-    ribs.push(r);
-  }
-  // door of light at the end of the nave
-  const door = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4.6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.goldHot).multiplyScalar(0.9), transparent: true }));
-  door.position.set(0, FLOOR + 2.3, -34);
-  const doorGlow = glow(C.gold, 22);
-  doorGlow.position.set(0, FLOOR + 2.4, -33);
-  scene.add(door, doorGlow);
-
+  const parth = model('parthenon', { scale: 0.8, color: C.gold, wireColor: C.goldHot });
+  parth.position.set(0, FLOOR, -36);
+  scene.add(parth);
+  const door = glow(C.goldHot, 16);
+  door.position.set(0, FLOOR + 4, -18);
+  scene.add(door);
+  const cParth = callout('PARTHENON', 'Athens \u00b7 Ictinus & Callicrates \u00b7 447\u2013432 BC', { offset: [4, 5, 0], scale: 0.9, color: C.gold });
+  cParth.position.set(11, FLOOR + 14, -8);
+  scene.add(cParth);
   const walkers = [];
   const R = rng(33);
   for (let i = 0; i < 10; i++) {
     const f = figure({ color: R() < 0.4 ? C.gold : C.cyan });
     f.scale.setScalar(1.05);
-    f.userData = { x: -2.2 + R() * 4.4, z: -6 - R() * 22, v: (R() < 0.5 ? -1 : 1) * (0.4 + R() * 0.5), ph: R() * 6, dir: R() < 0.5 };
+    f.userData = { x: (R() < 0.5 ? -1 : 1) * (9.6 + R() * 1.2), z: -12 - R() * 36, v: (R() < 0.5 ? -1 : 1) * (0.5 + R() * 0.5), ph: R() * 6, dir: false };
     scene.add(f);
     walkers.push(f);
   }
 
   // the three ways of knowing, as 3D words in the nave
-  const ways = [['OBSERVATION', 3.5, -10], ['REASON', 4.65, -14], ['ARGUMENT', 5.75, -18]].map(([s, t, z]) => {
+  const ways = [['OBSERVATION', 3.5, -1], ['REASON', 4.65, -4], ['ARGUMENT', 5.75, -7]].map(([s, t, z]) => {
     const w = word(s, { size: 0.9, depth: 0.25, color: C.goldHot, points: true, base: 0.05, fillIntensity: 0.8 });
-    w.position.set(0, 0.6, z);
+    w.position.set(0, 0.9, z);
     w.t = t;
     scene.add(w);
     return w;
@@ -110,8 +96,9 @@ scene3('reason', async () => {
   const CAM = [
     [0, 0, 0, 12, 0, 0, 0, 40],
     [2.2, 0, 0.3, 11, 0, 0, 0, 40],
-    [3.6, 0, 1.8, 8, 0, -1.4, -4, 44],
-    [7.7, 0, -0.4, -16, 0, 0.6, -34, 46],
+    [3.6, 0, 1.8, 9, 0, -1.4, -4, 44],
+    [5.4, 7, 4, 4, 0, 2, -20, 50],
+    [7.7, 0, -0.6, -13, 0, 0.4, -30, 58],
   ];
 
   function update(lt) {
@@ -136,19 +123,11 @@ scene3('reason', async () => {
       s.rotation.set(lt * (0.3 + i * 0.1), lt * (0.4 - i * 0.07), 0);
     });
     floor.setOpacity(E.sine(seg(lt, 2.6, 4.2)));
-    cols.forEach((c) => {
-      const t0 = 3.4 + c.i * 0.16;
-      c.setOpacity(seg(lt, t0, t0 + 0.1));
-      c.setReveal(lerp(0, 6, E.io(seg(lt, t0, t0 + 0.9))));
-    });
-    ribs.forEach((r) => {
-      const t0 = 4.6 + r.i * 0.12;
-      r.setOpacity(seg(lt, t0, t0 + 0.1));
-      r.setReveal(lerp(-0.2, 3.6, E.io(seg(lt, t0, t0 + 0.8))));
-    });
-    const d = E.sine(seg(lt, 4.2, 6.0));
-    door.material.opacity = d;
-    doorGlow.setOpacity(d * 0.18);
+    parth.setOpacity(seg(lt, 3.3, 3.5) * lerp(1, 0.45, seg(lt, 5.4, 6.4)));
+    parth.setPrint(E.io(seg(lt, 3.4, 5.6)));
+    const d = E.sine(seg(lt, 5.0, 6.5));
+    door.setOpacity(d * 0.35);
+    cParth.setOpacity(env(lt, 5.2, 5.5, 7.2, 7.6), seg(lt, 5.2, 6.0));
     walkers.forEach((f) => {
       const u = f.userData;
       const a = E.sine(seg(lt, 5.2, 6.2));
@@ -355,8 +334,21 @@ scene3('civic', async () => {
   const sheet = new THREE.Mesh(new THREE.PlaneGeometry(3, 4), new THREE.MeshBasicMaterial({ map: texW, color: 0x9c8c70, transparent: true }));
   sheet.position.set(0, 6, -12);
   chamber.add(sheet);
-  const platen = holo(new THREE.BoxGeometry(3.6, 0.6, 1.2), { color: C.cyan, base: 0.2, points: true });
+  const platen = holo(new THREE.BoxGeometry(3.6, 0.6, 1.2), { color: C.cyan, base: 0.05, points: false });
   chamber.add(platen);
+  const pressM = model('press', { height: 5.2, color: C.gold });
+  pressM.position.set(5.2, 3.3, -12);
+  pressM.rotation.y = -0.6;
+  chamber.add(pressM);
+  const cPress = callout('GUTENBERG', 'Movable type \u00b7 Mainz \u00b7 c. 1440', { offset: [2.5, 2.2, 0], scale: 0.6, color: C.gold });
+  cPress.position.set(6.5, 8.2, -12);
+  chamber.add(cPress);
+  const capM = model('capitol', { height: 26, color: C.gold, wireColor: C.goldHot });
+  capM.position.set(0, -3, -70);
+  chamber.add(capM);
+  const cCap = callout('REPRESENTATION', 'The Capitol \u00b7 Washington \u00b7 dome 1866', { offset: [6, 4, 0], scale: 1.4, color: C.gold });
+  cCap.position.set(10, 22, -70);
+  chamber.add(cCap);
 
   // E/F — pages multiply and take flight
   const N = 700;
@@ -427,6 +419,14 @@ scene3('civic', async () => {
     platen.position.set(0, 6, lerp(-6, -11.6, down));
     platen.rotation.x = Math.PI / 2;
     platen.setOpacity(env(lt, 7.1, 7.3, 7.9, 8.1));
+    const pr = env(lt, 6.9, 7.3, 8.3, 8.7);
+    pressM.setOpacity(pr);
+    pressM.setPrint(E.out(seg(lt, 6.9, 7.4)));
+    cPress.setOpacity(pr, seg(lt, 7.2, 7.8));
+    const cp = env(lt, 3.3, 3.8, 7.0, 7.5);
+    capM.setOpacity(cp * 0.8);
+    capM.setPrint(E.io(seg(lt, 3.4, 4.8)));
+    cCap.setOpacity(env(lt, 4.4, 4.8, 6.6, 7.0), seg(lt, 4.4, 5.2));
 
     // pages → birds
     const spread = E.io(seg(lt, 8.1, 9.6));

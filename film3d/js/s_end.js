@@ -6,6 +6,7 @@ import { extrudedGear, euclid3D, temple, armillary } from './s_open.js';
 import { domeGroup } from './s_mid.js';
 import { earth3 } from './s_late.js';
 import { book, pageTexture, PW3, PH3 } from './book3d.js';
+import { model } from './models.js';
 
 // layered wire extrusion of a morph shape, for depth
 function deepMorph(color, layers = 3) {
@@ -298,36 +299,61 @@ scene3('inherit', async () => {
 });
 
 // ---------------------------------------------------------------- THE CHAIN
+const CHAIN_MODELS = { stone: 'stoneBlock', column: 'column', arch: 'triumphalArch', book: 'openBook', painting: 'paintingFrame', telescope: 'galileoScope', equation: 'equation', gear: 'antikythera', engine: 'wattEngine', electricity: 'teslaCoil', microscope: 'microscope', aircraft: 'wrightFlyer', rocket: 'saturnV', transistor: 'chip', network: 'networkGlobe' };
 scene3('chain', async () => {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(46, W / H, 0.05, 1000);
-  const obj = deepMorph(C.gold, 4);
-  scene.add(obj);
-  const names = CHAIN.map((n) => { const w = word(n.toUpperCase(), { size: 0.55, depth: 0.1, color: C.ice, base: 0.0, fillIntensity: 0.25, wireIntensity: 1.2 }); w.position.set(0, -2.9, 0); scene.add(w); return w; });
+  const NP = 16000;
+  const clouds = [], wires = [];
+  for (const n of CHAIN) {
+    const m = model(CHAIN_MODELS[n], { height: 6, color: C.gold, wireColor: C.goldHot });
+    const s = 7 / Math.max(m.width, m.height, m.depth);
+    m.scale.setScalar(s);
+    m.position.y = -m.height * s / 2;
+    const pts = m.sample(NP, 5);
+    for (let i = 0; i < NP; i++) { pts[i * 3] *= s; pts[i * 3 + 1] = pts[i * 3 + 1] * s - m.height * s / 2; pts[i * 3 + 2] *= s; }
+    clouds.push(pts);
+    scene.add(m);
+    wires.push(m);
+  }
+  const cloud = pointCloud(Array.from(clouds[0]), { color: C.goldHot, size: 1.2, intensity: 1.2, max: 2.5, opacity: 0.6 });
+  scene.add(cloud);
+  const names = CHAIN.map((n) => { const w = word(n.toUpperCase(), { size: 0.55, depth: 0.1, color: C.ice, base: 0.0, fillIntensity: 0.25, wireIntensity: 1.2 }); w.position.set(0, -4.4, 0); scene.add(w); return w; });
   const R = rng(77), st = [];
-  for (let i = 0; i < 400; i++) { const q = R() * TAU, r = 4 + R() * 20, z = -R() * 120; st.push(Math.cos(q) * r, Math.sin(q) * r, z, Math.cos(q) * r, Math.sin(q) * r, z - 4 - R() * 6); }
+  for (let i = 0; i < 400; i++) { const q = R() * TAU, r = 5 + R() * 20, z = -R() * 120; st.push(Math.cos(q) * r, Math.sin(q) * r, z, Math.cos(q) * r, Math.sin(q) * r, z - 4 - R() * 6); }
   const sg = new THREE.BufferGeometry();
   sg.setAttribute('position', new THREE.Float32BufferAttribute(st, 3));
   const sm = lineMat({ color: C.gold, intensity: 1.5 });
   const streaks = new THREE.LineSegments(sg, sm);
   scene.add(streaks);
   function update(lt) {
-    const stop = lt > 3.15;
-    scene.visible = !stop;
-    camera.position.set(Math.sin(lt * 0.8) * 3, 0.5, 11 - lt * 0.8);
-    camera.lookAt(0, -0.3, 0);
+    scene.visible = lt <= 3.15;
+    camera.position.set(Math.sin(lt * 0.8) * 4, 1.2, 13 - lt * 0.9);
+    camera.lookAt(0, -0.5, 0);
     const f = clamp((lt - 0.1) / 0.2, 0, CHAIN.length - 1);
     const i = Math.floor(f), frac = f - i;
-    const k = i < CHAIN.length - 1 ? E.io(clamp((frac - 0.35) / 0.65)) : 0;
-    obj.setShape(morphShape(SH.n[CHAIN[i]], SH.n[CHAIN[Math.min(i + 1, CHAIN.length - 1)]], k), 0.014);
-    obj.setOpacity(1);
-    obj.rotation.y = Math.sin(lt * 2) * 0.35;
+    const k = i < CHAIN.length - 1 ? E.io(clamp((frac - 0.45) / 0.55)) : 0;
+    const a = clouds[i], b2 = clouds[Math.min(i + 1, CHAIN.length - 1)];
+    const cp = cloud.geometry.attributes.position;
+    for (let j = 0; j < NP; j++) {
+      const sw = Math.sin(k * Math.PI) * 0.6 * (hash(j) - 0.5);
+      cp.setXYZ(j, lerp(a[j * 3], b2[j * 3], k) + sw, lerp(a[j * 3 + 1], b2[j * 3 + 1], k) + sw * 0.6, lerp(a[j * 3 + 2], b2[j * 3 + 2], k) - sw);
+    }
+    cp.needsUpdate = true;
+    cloud.setOpacity(1);
+    const rot = Math.sin(lt * 1.6) * 0.5;
+    cloud.rotation.y = rot;
+    wires.forEach((w, j) => {
+      const on = j === i ? (1 - k) * seg(frac, 0, 0.25) : j === i + 1 ? k * k : 0;
+      w.setOpacity(on * 0.9);
+      w.rotation.y = rot;
+    });
     const idx = k > 0.5 ? Math.min(i + 1, CHAIN.length - 1) : i;
     names.forEach((w, j) => w.setOpacity(j === idx ? 1 - Math.sin(k * Math.PI) * 0.9 : 0));
     streaks.position.z = (lt * 60) % 120;
-    sm.uniforms.uOpacity.value = 0.6;
+    sm.uniforms.uOpacity.value = 0.5;
   }
-  return { scene, camera, update, bloom: 1.2 };
+  return { scene, camera, update, bloom: 1.1 };
 });
 
 // ---------------------------------------------------------------- QUESTIONS
@@ -504,6 +530,21 @@ scene3('title', async () => {
   const camera = new THREE.PerspectiveCamera(36, W / H, 0.05, 1000);
   const sky = stars(3000, 300, 41);
   scene.add(sky);
+  const HALL = ['parthenon', 'pantheon', 'colosseum', 'notreDame', 'duomo', 'press', 'violin', 'orrery', 'capitol', 'wattEngine', 'brooklyn', 'eiffel', 'wrightFlyer', 'caravel', 'saturnV', 'dna', 'chip'];
+  const hall = new THREE.Group();
+  hall.position.set(0, -5.6, -18);
+  const halls = HALL.map((n, i) => {
+    const m = model(n, { height: 3.4, color: i % 3 === 1 ? C.cyan : C.gold, wireColor: i % 3 === 1 ? C.ice : C.goldHot });
+    const s = Math.min(1, 5.5 / Math.max(m.width, m.depth));
+    m.scale.setScalar(s);
+    const a = -Math.PI * 0.46 + (i / (HALL.length - 1)) * Math.PI * 0.92;
+    m.position.set(Math.sin(a) * 17, 0, -Math.cos(a) * 9 + 6);
+    m.rotation.y = -a * 0.6;
+    m.i = i;
+    hall.add(m);
+    return m;
+  });
+  scene.add(hall);
   const t1 = word('ACHIEVEMENTS', { size: 1.25, depth: 0.2, color: C.goldHot, base: 0.0, fillIntensity: 0.25, weight: '400', wireIntensity: 1.1 });
   t1.position.set(0, 1.55, 0);
   const t2 = word('OF WESTERN CIVILIZATION', { size: 0.52, depth: 0.08, color: C.ice, base: 0.0, fillIntensity: 0.25, weight: '400', wireIntensity: 1.0 });
@@ -537,6 +578,13 @@ scene3('title', async () => {
     camera.position.set(0, 0.2, lerp(15, 13.2, E.sine(seg(lt, 0, 10.8))));
     camera.lookAt(0, 0.4, 0);
     sky.setOpacity(0.6 * (1 - seg(lt, 0.2, 1.5)) + 0.15);
+    const hq = 1 - E.sine(seg(lt, 7.4, 8.4));
+    halls.forEach((m) => {
+      const t0 = 0.6 + m.i * 0.1;
+      m.setOpacity(seg(lt, t0, t0 + 0.2) * 0.22 * hq + (lt > 8.4 ? 0.12 : 0));
+      m.setPrint(E.io(seg(lt, t0, t0 + 1.2)));
+    });
+    hall.rotation.y = Math.sin(lt * 0.12) * 0.05;
     const lw = E.io(seg(lt, 0.3, 1.6));
     line.scale.x = Math.max(0.001, lw * 0.7);
     line.setOpacity(1);

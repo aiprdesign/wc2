@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { scene3 } from './engine3d.js';
 import { C, holo, polyline, strokes, glow, spark, grid, figure, pointCloud, camKeys, shake, word, callout, label, stars, bust, lineMat } from './holo.js';
 import { extrudedGear } from './s_open.js';
+import { model, modelFrom } from './models.js';
+import { ORRERY_PLANETS } from './models_tech.js';
+const ORRERY_P = ORRERY_PLANETS.map((p) => p[1]);
 
 const flash3 = (o, a) => o.setOpacity(a);
 
@@ -78,9 +81,20 @@ scene3('beauty', async () => {
   const b3 = bust({ color: C.ice, depth: 1.6 });
   b3.scale.setScalar(1.1);
   scene.add(b3);
-  const dome = domeGroup(C.cyan);
-  dome.position.set(0, -2.6, 0);
-  scene.add(dome);
+  const nd = model('notreDame', { height: 5.2, color: C.cyan, wireColor: C.ice });
+  nd.position.set(0, -2.6, 0);
+  const duo = model('duomo', { height: 6.2, color: C.gold, wireColor: C.goldHot });
+  duo.position.set(0, -3.0, 0);
+  const vio = model('violin', { height: 6.4, color: C.goldHot });
+  vio.position.set(0, -3.4, -1.5);
+  scene.add(nd, duo, vio);
+  const cND = callout('NOTRE-DAME DE PARIS', '1163\u20131345', { offset: [2.5, 2, 0], scale: 0.5, color: C.cyan });
+  cND.position.set(2.5, 1.6, 0);
+  const cDuo = callout('BRUNELLESCHI', 'Florence \u00b7 dome completed 1436', { offset: [2.5, 2, 0], scale: 0.5, color: C.gold });
+  cDuo.position.set(2.2, 2.2, 0);
+  const cVio = callout('STRADIVARI', 'Cremona \u00b7 the \u201cMessiah\u201d, 1716', { offset: [2.5, 1.8, 0], scale: 0.5, color: C.gold });
+  cVio.position.set(1.2, 1.2, -1.5);
+  scene.add(cND, cDuo, cVio);
   const frame = holo(new THREE.BoxGeometry(9.4, 7.4, 0.3), { color: C.gold, fill: false, wireOpacity: 1 });
   const frameInner = holo(new THREE.BoxGeometry(8.6, 6.6, 0.3), { color: C.gold, fill: false, wireOpacity: 0.7 });
   const paint = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 6.6), new THREE.MeshBasicMaterial({ map: paintingTexture(), transparent: true, color: 0x888888 }));
@@ -128,7 +142,7 @@ scene3('beauty', async () => {
   hall.position.set(0, -6, -14);
   scene.add(hall);
 
-  const kin = [['SCULPTURE', 2.9], ['ARCHITECTURE', 4.3], ['PAINTING', 5.0], ['LITERATURE', 5.55], ['MUSIC', 6.1], ['THEATRE', 6.9]].map(([s, t]) => {
+  const kin = [['SCULPTURE', 2.9], ['ARCHITECTURE', 4.25], ['PAINTING', 5.3], ['MUSIC', 5.85], ['LITERATURE', 6.35], ['THEATRE', 6.9]].map(([s, t]) => {
     const l = label(s, '', { align: 'center', scale: 0.9, spacing: 30 });
     l.t = t;
     scene.add(l);
@@ -159,12 +173,19 @@ scene3('beauty', async () => {
     b3.setOpacity(E.sine(rise) * (1 - seg(lt, 4.1, 4.5)));
     b3.setReveal(lerp(-3, 3, E.io(rise)));
     b3.position.y = lerp(-0.3, 0.3, E.io(rise));
-    dome.setOpacity(env(lt, 4.1, 4.3, 5.7, 6.0));
-    dome.setReveal(lerp(0, 5, E.io(seg(lt, 4.1, 4.9))));
-    painting.visible = lt > 4.9 && lt < 6.1;
-    const pa = env(lt, 4.95, 5.25, 5.7, 6.0);
+    const ndA = env(lt, 4.05, 4.2, 4.6, 4.75);
+    nd.setOpacity(ndA); nd.setPrint(E.io(seg(lt, 4.05, 4.5))); nd.rotation.y = -0.9 + (lt - 4) * 0.8;
+    cND.setOpacity(ndA, seg(lt, 4.2, 4.5));
+    const duA = env(lt, 4.6, 4.75, 5.55, 5.9);
+    duo.setOpacity(duA); duo.setPrint(E.io(seg(lt, 4.6, 5.1))); duo.rotation.y = (lt - 4.6) * 0.5;
+    cDuo.setOpacity(duA, seg(lt, 4.8, 5.1));
+    const viA = env(lt, 5.75, 6.0, 6.6, 6.9);
+    vio.setOpacity(viA); vio.setPrint(E.io(seg(lt, 5.75, 6.2))); vio.rotation.y = -0.6 + (lt - 5.7) * 1.1; vio.rotation.z = 0.25;
+    cVio.setOpacity(viA, seg(lt, 5.9, 6.3));
+    painting.visible = lt > 5.3 && lt < 6.1;
+    const pa = env(lt, 5.3, 5.45, 5.75, 5.95);
     frame.setOpacity(pa); frameInner.setOpacity(pa);
-    paint.material.opacity = pa * seg(lt, 5.0, 5.5);
+    paint.material.opacity = pa * seg(lt, 5.3, 5.5);
     const bend = E.io(seg(lt, 6.4, 7.3));
     const sA = env(lt, 5.65, 6.0, 7.2, 7.6);
     staff.forEach((l, i) => {
@@ -219,10 +240,13 @@ scene3('science', async () => {
   obs.rotation.y = 0.9;
   obs.pose({ rArm: -1.2, lArm: -1.0, head: -0.3 });
   scene.add(obs);
-  const scope = holo(new THREE.CylinderGeometry(0.06, 0.1, 1.6, 12, 1, true), { color: C.gold, base: 0.15 });
-  scope.position.set(-1.0, -1.1, -4.1);
-  scope.rotation.set(0, 0, -0.9);
+  const scope = model('galileoScope', { height: 2.6, color: C.gold });
+  scope.position.set(-0.4, -2.6, -4.3);
+  scope.rotation.y = -0.4;
   scene.add(scope);
+  const cScope = callout('GALILEO\u2019S TELESCOPE', 'Padua \u00b7 1609 \u00b7 twenty-power', { offset: [1.6, 1.4, 0], scale: 0.32, color: C.gold });
+  cScope.position.set(0.6, 0.2, -4.3);
+  scene.add(cScope);
   const target = spark(C.goldHot, 0.8);
   target.position.set(14, 12, -60);
   scene.add(target);
@@ -285,6 +309,13 @@ scene3('science', async () => {
     helio.add(p);
     return { o, p, r: r / 40, i };
   });
+  const orr = model('orrery', { height: 7, color: C.gold });
+  orr.position.set(0, -11, 0);
+  helio.add(orr);
+  const arms = [0, 1, 2, 3, 4, 5].map((i) => { const a = modelFrom('orreryArm', i, { scale: orr.fitScale, raw: true, color: i === 2 ? C.cyan : C.goldHot }); orr.add(a); return a; });
+  const cOrr = callout('THE ORRERY', 'Heliocentric \u00b7 Copernicus 1543 \u00b7 Kepler 1609', { offset: [6, 3, 0], scale: 1.1, color: C.gold });
+  cOrr.position.set(8, -4, 0);
+  helio.add(cOrr);
   const gear = extrudedGear(235 / 40, 36, 0.4, C.gold);
   gear.rotation.x = -Math.PI / 2;
   helio.add(gear);
@@ -312,6 +343,7 @@ scene3('science', async () => {
     hill.setOpacity(A);
     obs.setOpacity(A);
     scope.setOpacity(A);
+    cScope.setOpacity(A * seg(lt, 0.5, 0.8), seg(lt, 0.5, 1.2));
     target.setOpacity(A);
     sky.setOpacity(1);
     const J = env(lt, 2.0, 2.3, 3.5, 3.8);
@@ -351,6 +383,11 @@ scene3('science', async () => {
       p.setOpacity(Hn * (1 - toGear));
     });
     gear.setOpacity(seg(lt, 8.8, 9.2));
+    const oA = Hn * (1 - toGear);
+    orr.setOpacity(oA);
+    orr.setPrint(E.io(seg(lt, 5.8, 7.0)));
+    arms.forEach((a, i) => { a.setOpacity(oA * seg(lt, 6.4 + i * 0.1, 6.8 + i * 0.1)); a.rotation.y = -lt * (2.2 / Math.sqrt(ORRERY_P[i])) - i; });
+    cOrr.setOpacity(env(lt, 6.4, 6.8, 8.4, 8.8), seg(lt, 6.4, 7.2));
     gear.rotation.z = lt * 1.2;
     small.setOpacity(Hn * (1 - toGear));
     const au = env(lt, 5.7, 6.0, 7.4, 7.7);
@@ -415,7 +452,18 @@ scene3('industry', async () => {
   for (let i = 0; i < 8; i++) { const s = polyline([[0, 0, 0], [3, 0, 0]], { color: C.gold }); s.rotation.z = (i * TAU) / 8; spokes.add(s); }
   spokes.position.x = 5;
   const rod = polyline([[0, 0, 0], [1, 0, 0]], { color: C.goldHot, intensity: 3 });
-  eng.add(cyl, piston, fly, spokes, rod);
+  const wE = model('wattEngine', { scale: 1, raw: true, color: C.gold });
+  const wB = model('wattBeam', { scale: 1, raw: true, color: C.goldHot });
+  wB.position.set(-0.6, 9.5, 0);
+  const wF = model('wattFlywheel', { scale: 1, raw: true, color: C.gold });
+  wF.position.set(5.2, 4.2, 0);
+  const wG = model('governor', { scale: 1.3, raw: true, color: C.cyan });
+  wG.position.set(2.8, 5.6, 1.2);
+  const rods = [polyline([[0, 0, 0], [0, 1, 0]], { color: C.goldHot, intensity: 2.6 }), polyline([[0, 0, 0], [0, 1, 0]], { color: C.goldHot, intensity: 2.6 })];
+  const wattG = new THREE.Group();
+  wattG.add(wE, wB, wF, wG, ...rods);
+  wattG.position.set(-1, -5, 0);
+  eng.add(wattG);
   const steam = [];
   const R = rng(6);
   for (let i = 0; i < 400; i++) steam.push(0, 0, 0);
@@ -452,6 +500,10 @@ scene3('industry', async () => {
   for (const z of [-1.2, 0, 1.2]) for (const x of [-0.8, 0.8]) { const w = addL(new THREE.TorusGeometry(0.55, 0.06, 6, 20), x, -0.6, z, C.cyan); w.rotation.y = Math.PI / 2; }
   loco.position.set(0, -0.6, 0);
   rail.add(loco);
+  const rk = model('rocketLoco', { scale: 1.45, raw: true, color: C.gold, wireColor: C.goldHot });
+  rk.position.set(0, -1.5, 0);
+  loco.add(rk);
+  lp.forEach((h) => (h.visible = false));
   const smoke = [];
   for (let i = 0; i < 300; i++) smoke.push(0, 0, 0);
   const smokeP = pointCloud(smoke, { color: C.ice, size: 7, intensity: 1, opacity: 0.5 });
@@ -493,8 +545,11 @@ scene3('industry', async () => {
   const deckL = polyline([[-44, 0, 0], [0, 0, 0]], { color: C.ice, intensity: 3 });
   const deckR = polyline([[44, 0, 0], [0, 0, 0]], { color: C.ice, intensity: 3 });
   br.add(deckL, deckR);
+  const bkM = model('brooklyn', { scale: 0.115, raw: true, color: C.gold, wireColor: C.goldHot });
+  bkM.position.set(0, -4.7, 0);
+  br.add(bkM);
   const cBr = callout('BROOKLYN BRIDGE', '1,595 ft main span · 1883', { offset: [4, 6, 0], scale: 1.8, color: C.gold });
-  cBr.position.set(14, 16, 0);
+  cBr.position.set(28, 5.5, 0);
   br.add(cBr);
   scene.add(br);
 
@@ -539,8 +594,8 @@ scene3('industry', async () => {
       camera.lookAt(2, 0, 0);
     } else if (lt < 4.85) {
       const k = lt - 3.45;
-      camera.position.set(-6 + k * 5, 3 - k, -88 - k * 2);
-      camera.lookAt(0, 0, -100);
+      camera.position.set(-9 + k * 7, 4 - k, -84 - k * 2);
+      camera.lookAt(0, 0.5, -100);
     } else if (lt < 6.35) {
       const k = lt - 4.85;
       camera.position.set(4.5 - k * 1.5, 1.2, -300 + 7 - k * 2);
@@ -548,8 +603,8 @@ scene3('industry', async () => {
       loco.position.z = -k * 0.5;
     } else if (lt < 7.55) {
       const k = lt - 6.35;
-      camera.position.set(-30 + k * 10, 8, -600 + 60 - k * 8);
-      camera.lookAt(0, 6, -600);
+      camera.position.set(-44 + k * 14, 10 - k * 2, -600 + 58 - k * 8);
+      camera.lookAt(-4, 4, -600);
     } else {
       const k = lt - 7.55;
       camera.position.set(0, 0, -900 + 20 - k * 6);
@@ -582,13 +637,19 @@ scene3('industry', async () => {
 
     // B
     eng.visible = lt > 3.35 && lt < 4.9;
-    const ph = lt * 22;
-    const px = 5 + Math.cos(ph) * 2.2, py = Math.sin(ph) * 2.2;
-    const pistonX = px - Math.sqrt(7 * 7 - py * py);
-    piston.position.x = pistonX - 0.5;
-    const ra = rod.geometry.attributes.position;
-    ra.setXYZ(0, pistonX, 0, 0); ra.setXYZ(1, px, py, 0); ra.needsUpdate = true;
-    fly.rotation.z = ph; spokes.rotation.z = ph;
+    const ph = lt * 9;
+    const ba = Math.sin(ph) * 0.12;
+    wB.rotation.z = ba;
+    wF.rotation.z = -ph;
+    wG.rotation.y = lt * 12;
+    const L = [-0.6 - Math.cos(ba) * 4.6, 9.5 - Math.sin(ba) * 4.6], Rr = [-0.6 + Math.cos(ba) * 4.6, 9.5 + Math.sin(ba) * 4.6];
+    const crank = [5.2 + Math.cos(-ph) * 1.2, 4.2 + Math.sin(-ph) * 1.2];
+    const r0 = rods[0].geometry.attributes.position, r1 = rods[1].geometry.attributes.position;
+    r0.setXYZ(0, L[0], L[1], 0); r0.setXYZ(1, -4.5, 5.0, 0); r0.needsUpdate = true;
+    r1.setXYZ(0, Rr[0], Rr[1], 0); r1.setXYZ(1, crank[0], crank[1], 0.3); r1.needsUpdate = true;
+    rods.forEach((r) => r.geometry.computeBoundingSphere());
+    [cyl, piston, fly, spokes, rod].forEach((o) => (o.visible = false));
+    [wE, wB, wF, wG].forEach((m) => { m.setOpacity(1); m.setPrint(E.out(seg(lt, 3.4, 3.9))); });
     const sp = steamP.geometry.attributes.position;
     for (let i = 0; i < sp.count; i++) {
       const age = ((lt * 1.3 + hash(i) * 3) % 1);
@@ -601,7 +662,8 @@ scene3('industry', async () => {
     rail.visible = lt > 4.8 && lt < 6.4;
     land.position.z = -40 + ((lt * 30) % 4);
     tieL.position.z = (lt * 30) % 3;
-    loco.children.forEach((c, i) => { if (i >= 3 && i < 9) c.rotation.x = lt * 20; });
+    loco.children.forEach((c) => { if (c !== rk && c !== cSte) c.visible = false; });
+    rk.setOpacity(1);
     const smk = smokeP.geometry.attributes.position;
     for (let i = 0; i < smk.count; i++) {
       const age = ((lt * 1.6 + hash(i) * 3) % 1);
@@ -613,12 +675,15 @@ scene3('industry', async () => {
     // D
     br.visible = lt > 6.25 && lt < 7.6;
     const tw = E.out(seg(lt, 6.3, 6.75));
-    towers.forEach((t) => t.setReveal(lerp(-11, 11, tw)));
+    towers.forEach((t) => (t.visible = false));
+    cables.visible = false; deckL.visible = false; deckR.visible = false; hangers.forEach((h) => (h.visible = false));
+    bkM.setOpacity(0.45);
+    bkM.setPrint(E.io(seg(lt, 6.3, 7.3)));
     const cab = E.io(seg(lt, 6.6, 7.05));
     cables.children.forEach((c) => c.setProgress(cab));
     const deck = E.io(seg(lt, 6.8, 7.3));
     deckL.setProgress(deck); deckR.setProgress(deck);
-    hangers.forEach((h) => h.setOpacity(Math.abs(h.x) > (1 - deck) * 44 - 30 ? seg(lt, 6.9, 7.2) : 0));
+
     cBr.setOpacity(seg(lt, 7.0, 7.3), seg(lt, 7.0, 7.5));
 
     // E

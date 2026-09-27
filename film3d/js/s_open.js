@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { scene3 } from './engine3d.js';
 import { C, holo, polyline, strokes, glow, spark, beam, grid, dust, hand, figure, pointCloud, camKeys, shake, callout } from './holo.js';
 import { book, PW3, PH3 } from './book3d.js';
+import { model } from './models.js';
 
 // page-local (0..600, 0..800) → world on the right (+1) or left (-1) page
 export const pageXZ = (side, px, py) => [side > 0 ? (px / 600) * PW3 : -PW3 + (px / 600) * PW3, -PH3 / 2 + (py / 800) * PH3];
@@ -100,12 +101,18 @@ scene3('open', async () => {
   vit.setOpacity = (a) => { vitFig.setOpacity(a); vitRing.setOpacity(a); vitSq.setOpacity(a); vit.visible = a > 0.002; return vit; };
   const g1 = extrudedGear(0.45, 18, 0.12, C.cyan);
   scene.add(eu, tp, arm, vit, g1);
+  const mParth = model('parthenon', { height: 0.9, color: C.gold });
+  const mOrr = model('orrery', { height: 0.8, color: C.gold });
+  const mVit = model('vitruvian', { height: 1.3, color: C.cyan });
+  const mAnt = model('antikythera', { height: 0.9, color: C.gold });
+  scene.add(mParth, mOrr, mVit, mAnt);
+  [tp, arm, vit, g1].forEach((o) => o.setOpacity(0));
   const risers = [
     { o: eu, side: -1, s: 4.4, e: 5.0, y: 0.9 },
-    { o: tp, side: 1, s: 4.4, e: 5.0, y: 0.25 },
-    { o: arm, side: -1, s: 4.9, e: 5.5, y: 0.9 },
-    { o: vit, side: 1, s: 4.9, e: 5.5, y: 0.8 },
-    { o: g1, side: -1, s: 5.4, e: 6.0, y: 0.9 },
+    { o: mParth, side: 1, s: 4.4, e: 5.0, y: 0.15, print: true },
+    { o: mOrr, side: -1, s: 4.9, e: 5.5, y: 0.2, print: true },
+    { o: mVit, side: 1, s: 4.9, e: 5.5, y: 0.2, print: true },
+    { o: mAnt, side: -1, s: 5.4, e: 6.0, y: 0.3, print: true },
   ];
 
   // vignettes: stone and hammer, telescope, gears
@@ -215,11 +222,11 @@ scene3('open', async () => {
       const a = Math.sin(k * Math.PI);
       r.o.setOpacity(a);
       r.o.position.set(r.side * 1.5, lerp(0.1, r.y, E.out(k)), -0.1);
-      r.o.rotation.y = (lt - r.s) * 0.8 * r.side;
+      r.o.rotation.y = (lt - r.s) * 0.8 * r.side + (r.print ? 0.5 : 0);
       if (r.o.setProgress) r.o.setProgress(E.out(k * 1.8));
+      if (r.print) r.o.setPrint(E.out(clamp(k * 2.2)));
       if (r.o.spin) r.o.spin(lt);
     }
-    g1.rotation.z = lt * 1.5;
 
     // vignettes
     const vig = E.out(seg(lt, 5.9, 6.5)) * fadeOut;

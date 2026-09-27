@@ -1,6 +1,7 @@
 /* THE INHERITANCE 3D — Connection, Medicine, Exploration. */
 import * as THREE from 'three';
 import { scene3 } from './engine3d.js';
+import { model } from './models.js';
 import { C, holo, polyline, glow, spark, grid, figure, pointCloud, camKeys, shake, word, callout, label, stars, bust, hand, earthPoints, latLon, morphLines, fillMat } from './holo.js';
 
 // ---------------------------------------------------------------- shared: Earth
@@ -95,6 +96,12 @@ scene3('connect', async () => {
   Object.values(CITIES).forEach(([la, lo]) => { const v = latLon(la, lo, R * 1.01); cities.push(v.x, v.y, v.z); });
   const cityP = pointCloud(cities, { color: C.goldHot, size: 8, intensity: 3, max: 12 });
   globe.add(cityP);
+  const eif = model('eiffel', { height: 16, color: C.gold, wireColor: C.goldHot });
+  eif.position.set(0, -8, 12);
+  globe.add(eif);
+  const cEif = callout('EIFFEL TOWER', 'Paris 1889 \u00b7 wireless from its summit, 1903', { offset: [3, 2, 0], scale: 0.6, color: C.gold });
+  cEif.position.set(0.5, 8.2, 12);
+  globe.add(cEif);
   const rings = [];
   for (let i = 0; i < 6; i++) {
     const r = holo(new THREE.TorusGeometry(1, 0.02, 4, 90), { color: C.gold, fill: false, threshold: 1 });
@@ -104,7 +111,7 @@ scene3('connect', async () => {
 
   function update(lt) {
     if (lt < 2.8) camKeys(camera, [[0, 0, 1, 16, 0, 0.5, -2, 50], [2.8, 0, 0.6, 14, 0, 0.5, -2, 50]], lt);
-    else camKeys(camera, [[2.8, 0, 0, -32, 0, 0, -60, 50], [4.6, 0, 0, -40, 0, 0, -60, 46], [5.2, 0, 0, -48, 0, 0, -60, 46]], lt);
+    else camKeys(camera, [[2.8, 0, 0, -32, 0, 0, -60, 50], [4.3, 0, 0, -40, 0, 0, -60, 46], [5.2, 4, 1, -32, 0, 1, -48, 50]], lt);
     const AB = 1 - seg(lt, 2.7, 3.0);
     floor.setOpacity(AB);
     wire.setProgress(E.out(seg(lt, 0, 0.5))).setOpacity(AB * 0.8);
@@ -147,12 +154,17 @@ scene3('connect', async () => {
     });
     cityP.setOpacity(G * seg(lt, 3.9, 4.2));
     const D2 = seg(lt, 4.4, 5.2);
+    const eA = seg(lt, 4.25, 4.5);
+    eif.setOpacity(eA);
+    eif.setPrint(E.io(seg(lt, 4.25, 4.75)));
+    eif.rotation.y = lt * 0.3;
+    cEif.setOpacity(eA, seg(lt, 4.5, 4.9));
     rings.forEach((r, i) => {
       const k = ((lt - 4.4) * 0.9 + i / 6) % 1;
-      r.scale.setScalar(R * 1.1 + k * 14);
+      r.scale.setScalar(0.5 + k * 16);
       r.setOpacity(D2 > 0 ? (1 - k) * Math.min(1, D2 * 3) : 0);
-      r.rotation.set(0, 0, 0);
-      r.position.z = 2;
+      r.rotation.set(Math.PI / 2, 0, 0);
+      r.position.set(0, 8.2, 12);
     });
   }
   return { scene, camera, update, bloom: 1.0 };
@@ -232,6 +244,19 @@ scene3('medicine', async () => {
     micro.add(c);
     cells.push(c);
   }
+  const helixM = model('dna', { height: 14, color: C.cyan, wireColor: C.ice });
+  helixM.position.set(-7, -7, -8);
+  helixM.rotation.z = 0.35;
+  micro.add(helixM);
+  const cDNA = callout('THE DOUBLE HELIX', 'Watson, Crick, Franklin, Wilkins \u00b7 1953', { offset: [-6, 3, 0], scale: 0.7, color: C.cyan });
+  cDNA.position.set(-8, 4, -8);
+  micro.add(cDNA);
+  const scopeM = model('microscope', { height: 7, color: C.gold });
+  scopeM.position.set(0, -3.5, 16);
+  micro.add(scopeM);
+  const cHooke = callout('HOOKE', 'Micrographia \u00b7 1665', { offset: [2.5, 1.8, 0], scale: 0.5, color: C.gold });
+  cHooke.position.set(1.8, 2.2, 16);
+  micro.add(cHooke);
   const heart = heartCloud();
   heart.position.set(0, 0, -6);
   micro.add(heart);
@@ -245,8 +270,8 @@ scene3('medicine', async () => {
   function update(lt) {
     const bedA = 1 - env(lt, 1.8, 2.1, 4.1, 4.5);
     const strong = E.io(seg(lt, 4.4, 5.4));
-    if (lt < 2.2 || lt > 4.2) camKeys(camera, [[0, -0.5, 1.5, 12, 0.8, -0.4, -1, 40], [2.2, -0.2, 1.3, 11, 0.8, -0.4, -1, 40], [4.2, 0.5, 1.0, 11, 1.0, -0.4, -1, 40], [7.3, 0.8, 1.1, 12.5, 1.0, -0.4, -1, 40]], lt);
-    else camKeys(camera, [[2.2, 0, 0, -58, 0, 0, -80, 45], [3.2, 0, 0, -66, 0, 0, -86, 45], [4.2, 0, 0, -70, 0, 0, -86, 42]], lt);
+    if (lt < 1.8 || lt > 4.2) camKeys(camera, [[0, -0.5, 1.5, 12, 0.8, -0.4, -1, 40], [2.2, -0.2, 1.3, 11, 0.8, -0.4, -1, 40], [4.2, 0.5, 1.0, 11, 1.0, -0.4, -1, 40], [7.3, 0.8, 1.1, 12.5, 1.0, -0.4, -1, 40]], lt);
+    else camKeys(camera, [[1.8, 0, 1, -54, 0, 0, -64, 45], [2.5, 0, 0, -60, 0, 0, -80, 45], [3.2, 0, 0, -66, 0, 0, -86, 45], [4.2, 0, 0, -70, 0, 0, -86, 42]], lt);
     const glintA = E.out(seg(lt, 5.0, 5.6));
     parent.setOpacity(bedA); kid.setOpacity(bedA);
     kid.curl(lerp(0.2, 0.7, strong), lerp(0.3, 0.8, strong));
@@ -261,6 +286,14 @@ scene3('medicine', async () => {
     const cellsA = M * (1 - seg(lt, 3.1, 3.4));
     cells.forEach((c) => { c.setOpacity(cellsA); c.children.forEach((k) => k.setOpacity && k.setOpacity(cellsA * 0.6)); c.position.y += Math.sin(lt + c.userData.ph) * 0.002; c.rotation.y = lt * 0.2 + c.userData.ph; });
     const hA = M * seg(lt, 3.1, 3.4);
+    const dA = M * seg(lt, 2.9, 3.3);
+    helixM.setOpacity(dA);
+    helixM.setPrint(E.io(seg(lt, 2.9, 3.6)));
+    helixM.rotation.y = lt * 0.8;
+    cDNA.setOpacity(dA, seg(lt, 3.3, 3.8));
+    const sA = env(lt, 1.8, 2.0, 2.4, 2.6);
+    scopeM.setOpacity(sA); scopeM.setPrint(E.io(seg(lt, 1.8, 2.2))); scopeM.rotation.y = lt * 0.5;
+    cHooke.setOpacity(sA, seg(lt, 1.9, 2.3));
     const beat = 1 + Math.pow(Math.max(0, Math.sin(lt * 7)), 8) * 0.08;
     heart.scale.setScalar(beat);
     heart.rotation.y = lt * 0.6;
@@ -289,6 +322,9 @@ scene3('explore', async () => {
   for (let i = -2; i <= 2; i++) addP(new THREE.CylinderGeometry(0.02, 0.02, 1.6, 4), i * 1.2, 0.2, 0);
   plane.rotation.set(0.25, -0.5, 0);
   scene.add(plane);
+  const wf = model('wrightFlyer', { scale: 0.62, color: C.ice, wireColor: '#dff6ff' });
+  wf.rotation.set(0.25, -0.5 + Math.PI / 2, 0);
+  scene.add(wf);
   const cWright = callout('WRIGHT FLYER', 'Kitty Hawk · 17 December 1903 · 12 seconds', { offset: [3, 2.2, 0], scale: 0.62, color: C.cyan });
   cWright.position.set(2.5, 1.2, 0);
   scene.add(cWright);
@@ -304,7 +340,7 @@ scene3('explore', async () => {
   launch.add(ground);
   const tower = holo(new THREE.BoxGeometry(1.6, 18, 1.6, 1, 12, 1), { color: C.cyan, fill: false, wireframe: true, wireOpacity: 0.5 });
   tower.position.set(26, 5, -60);
-  launch.add(tower);
+  tower.visible = false;
   const prof = [];
   for (let i = 0; i <= 30; i++) {
     const y = (i / 30) * 16;
@@ -314,6 +350,11 @@ scene3('explore', async () => {
   const rocket = holo(new THREE.LatheGeometry(prof, 20), { color: C.goldHot, base: 0.03, threshold: 10, points: true, pointSize: 1.2, fillIntensity: 0.6 });
   rocket.position.set(22.5, -4, -60);
   launch.add(rocket);
+  rocket.visible = false;
+  const sat = model('saturnV', { scale: 0.16, raw: true, color: C.goldHot, wireColor: C.goldHot });
+  launch.add(sat);
+  const lut = modelFromTower();
+  launch.add(lut);
   const exhaust = [];
   for (let i = 0; i < 2500; i++) exhaust.push(0, 0, 0);
   const exP = pointCloud(exhaust, { color: '#ffb070', size: 10, intensity: 2.2, max: 14, opacity: 0.55 });
@@ -371,8 +412,10 @@ scene3('explore', async () => {
     const A = 1 - E.sine(seg(lt, 2.0, 2.6));
     bp.setOpacity(A * (1 - seg(lt, 1.3, 2.4)));
     const build = E.io(seg(lt, 0, 1.1));
-    pp.forEach((p) => { p.setReveal(lerp(-4, 4, build)); p.setOpacity(A * (1 - seg(lt, 1.7, 2.0))); });
-    plane.position.y = E.io(seg(lt, 1.2, 2.0)) * 2;
+    pp.forEach((p) => p.setOpacity(0));
+    wf.setOpacity(A * (1 - seg(lt, 1.7, 2.0)));
+    wf.setPrint(build);
+    wf.position.y = -1 + E.io(seg(lt, 1.2, 2.0)) * 2;
     cWright.setOpacity(env(lt, 0.6, 0.9, 1.7, 2.0), seg(lt, 0.6, 1.2));
     const m = [CRAFT.biplane, CRAFT.prop, CRAFT.jet, CRAFT.rocket];
     let shape = m[0];
@@ -386,9 +429,13 @@ scene3('explore', async () => {
     const ign = seg(lt, 4.0, 4.3);
     const climb = E.in(seg(lt, 4.3, 6.0));
     rocket.position.y = -4 + climb * 90;
-    rocket.setOpacity(1);
+    sat.position.set(22.5, -4 + climb * 90, -60);
+    sat.setOpacity(1);
+    sat.setPrint(E.io(seg(lt, 3.3, 3.9)));
+    lut.setOpacity(1 - seg(lt, 5.5, 6));
+    lut.setPrint(E.io(seg(lt, 3.3, 3.9)));
     flame.position.set(22.5, rocket.position.y - 0.5, -60);
-    flame.setOpacity(ign);
+    flame.setOpacity(ign * 0.5);
     const ex = exP.geometry.attributes.position;
     for (let i = 0; i < ex.count; i++) {
       const born = 4.0 + hash(i) * 2.0, age = lt - born;
@@ -399,7 +446,7 @@ scene3('explore', async () => {
       else { const y0 = -4 + E.in(seg(born, 4.3, 6.0)) * 90; ex.setXYZ(i, 22.5 + (hash(i + 5) - 0.5) * age * 3, y0 - age * 6, -60 + (hash(i + 6) - 0.5) * age * 3); }
     }
     ex.needsUpdate = true;
-    exP.setOpacity(ign * 0.6);
+    exP.setOpacity(ign * 0.25);
     watcher.setOpacity(1);
     watcher.setColor(ign > 0 ? '#ffb070' : C.cyan);
     eyeG.setOpacity(0.6 + ign * 0.4);
@@ -416,5 +463,12 @@ scene3('explore', async () => {
     earth.position.y = lerp(0, 1.5, rise);
     cApollo.setOpacity(env(lt, 11.4, 11.8, 13.8, 14.3), seg(lt, 11.4, 12.2));
   }
-  return { scene, camera, update, bloom: (lt) => (lt > 6 ? 0.8 : 1.0), flash: (lt) => 0.35 * env(lt, 4.0, 4.15, 4.2, 5.0) };
+  return { scene, camera, update, bloom: (lt) => (lt > 6 ? 0.8 : 1.0), flash: (lt) => 0.1 * env(lt, 4.0, 4.1, 4.15, 4.5) };
 });
+
+function modelFromTower() {
+  // the launch umbilical tower alone, from the Saturn V model with its tower
+  const m = model('saturnVTower', { scale: 0.16, raw: true, color: C.cyan });
+  m.position.set(22.5, -4, -60);
+  return m;
+}
