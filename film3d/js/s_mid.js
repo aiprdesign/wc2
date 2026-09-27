@@ -235,7 +235,7 @@ scene3('science', async () => {
   const hill = terrain(80, 40, C.cyan, 3);
   hill.position.set(0, -3, -10);
   scene.add(hill);
-  const obs = figure({ color: C.cyan, points: true });
+  const obs = figure({ color: C.cyan, poses: ['reach'] });
   obs.position.set(-1.5, -2.6, -4);
   obs.rotation.y = 0.9;
   obs.pose({ rArm: -1.2, lArm: -1.0, head: -0.3 });
@@ -330,7 +330,7 @@ scene3('science', async () => {
   const aBase = aShards.slice();
   const aP = pointCloud(aShards, { color: C.cyan, size: 3, intensity: 2.2 });
   scene.add(aP);
-  const small = figure({ color: C.cyan });
+  const small = figure({ color: C.cyan, poses: ['lift'] });
   small.position.set(0, -9, -392);
   small.pose({ head: -0.5 });
   scene.add(small);
@@ -426,7 +426,7 @@ scene3('industry', async () => {
     shop.add(g);
     extra.push(g);
   }
-  const maker = figure({ color: C.cyan, points: true });
+  const maker = figure({ color: C.cyan, poses: ['seated'] });
   maker.position.set(-6, -3, 2);
   maker.rotation.y = 1.2;
   maker.scale.setScalar(2.2);

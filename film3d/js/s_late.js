@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { scene3 } from './engine3d.js';
 import { model } from './models.js';
+import { organic, heartSculpt } from './sdf.js';
 import { C, holo, polyline, glow, spark, grid, figure, pointCloud, camKeys, shake, word, callout, label, stars, bust, hand, earthPoints, latLon, morphLines, fillMat } from './holo.js';
 
 // ---------------------------------------------------------------- shared: Earth
@@ -44,12 +45,12 @@ scene3('connect', async () => {
   const morse = label('• — • •   — • —', '', { align: 'center', scale: 0.8, color: '#cfe6ff' });
   morse.position.set(0, 3.2, -2);
   scene.add(morse);
-  const her = figure({ color: C.gold, points: true });
+  const her = figure({ color: C.gold, poses: ['lift'] });
   her.position.set(-12, -2, -2);
   her.rotation.y = Math.PI / 2;
   her.scale.setScalar(2.2);
   her.pose({ rArm: -2.2, rArmZ: 0.3 });
-  const him = figure({ color: C.cyan, points: true });
+  const him = figure({ color: C.cyan, poses: ['lift'] });
   him.position.set(12, -2, -2);
   him.rotation.y = -Math.PI / 2;
   him.scale.setScalar(2.2);
@@ -257,7 +258,8 @@ scene3('medicine', async () => {
   const cHooke = callout('HOOKE', 'Micrographia \u00b7 1665', { offset: [2.5, 1.8, 0], scale: 0.5, color: C.gold });
   cHooke.position.set(1.8, 2.2, 16);
   micro.add(cHooke);
-  const heart = heartCloud();
+  const heart = organic(heartSculpt(), { color: C.ember, lineColor: '#ff8a5a', pointEvery: 10 });
+  heart.scale.setScalar(2.2);
   heart.position.set(0, 0, -6);
   micro.add(heart);
   const cHarvey = callout('HARVEY', 'The circulation of the blood · 1628', { offset: [3, 2.5, 0], scale: 0.8, color: C.gold });
@@ -295,7 +297,7 @@ scene3('medicine', async () => {
     scopeM.setOpacity(sA); scopeM.setPrint(E.io(seg(lt, 1.8, 2.2))); scopeM.rotation.y = lt * 0.5;
     cHooke.setOpacity(sA, seg(lt, 1.9, 2.3));
     const beat = 1 + Math.pow(Math.max(0, Math.sin(lt * 7)), 8) * 0.08;
-    heart.scale.setScalar(beat);
+    heart.scale.setScalar(2.2 * beat);
     heart.rotation.y = lt * 0.6;
     heart.setOpacity(hA);
     cHarvey.setOpacity(hA, seg(lt, 3.3, 3.8));

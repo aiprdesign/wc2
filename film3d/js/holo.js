@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { organic, figureSculpt, bustSculpt } from './sdf.js';
 
 export const C = {
   cyan: '#56d8ff',
@@ -430,34 +431,27 @@ export function callout(title, sub, o = {}) {
 
 // ---------- figures ----------
 function cap(r, len, seg = 6) { return new THREE.CapsuleGeometry(r, len, 3, seg); }
-// Human figure hologram built from capsules; pose via .pose({walk, arms})
+// Human figure hologram: sculpted body, with baked poses swapped by pose().
 export function figure(o = {}) {
   const color = o.color || C.cyan;
   const g = new THREE.Group();
-  const part = (geom) => { const h = holo(geom, { color, threshold: 30, base: 0.1, wireOpacity: 0.5, points: o.points }); return h; };
-  const head = part(new THREE.SphereGeometry(0.12, 12, 10)); head.position.y = 1.62;
-  const torso = part(cap(0.17, 0.42)); torso.position.y = 1.2;
-  const hips = part(cap(0.15, 0.1)); hips.position.y = 0.92;
-  const limb = (x, y, len, r) => { const p = new THREE.Group(); const m = part(cap(r, len)); m.position.y = -len / 2 - r; p.add(m); p.position.set(x, y, 0); return p; };
-  const lArm = limb(-0.24, 1.45, 0.5, 0.05), rArm = limb(0.24, 1.45, 0.5, 0.05);
-  const lLeg = limb(-0.1, 0.9, 0.72, 0.07), rLeg = limb(0.1, 0.9, 0.72, 0.07);
-  g.add(head, torso, hips, lArm, rArm, lLeg, rLeg);
-  g.parts = { head, torso, lArm, rArm, lLeg, rLeg };
-  const all = [head, torso, hips, lArm.children[0], rArm.children[0], lLeg.children[0], rLeg.children[0]];
+  const poses = {};
+  const want = o.poses || ['stand', 'walkA', 'walkB'];
+  for (const k of want) { const m = organic(figureSculpt(k, o.res || 64), { color, pointEvery: 14 }); m.visible = false; g.add(m); poses[k] = m; }
+  let cur = poses[want[0]];
+  cur.visible = true;
+  let op = 1;
+  g.parts = { head: new THREE.Object3D() };
   g.pose = (p = {}) => {
-    const w = p.walk || 0, ph = p.phase || 0;
-    lLeg.rotation.x = Math.sin(ph) * 0.5 * w;
-    rLeg.rotation.x = -Math.sin(ph) * 0.5 * w;
-    lArm.rotation.x = -Math.sin(ph) * 0.4 * w + (p.lArm || 0);
-    rArm.rotation.x = Math.sin(ph) * 0.4 * w + (p.rArm || 0);
-    lArm.rotation.z = p.lArmZ || 0;
-    rArm.rotation.z = p.rArmZ || 0;
-    head.rotation.x = p.head || 0;
+    let k = p.name || (p.walk ? (Math.sin(p.phase || 0) > 0 ? 'walkA' : 'walkB') : 'stand');
+    if (!poses[k]) k = want[0];
+    cur = poses[k];
+    for (const m of Object.values(poses)) m.visible = m === cur && op > 0.002;
     return g;
   };
-  g.setOpacity = (a) => { all.forEach((h) => h.setOpacity(a)); g.visible = a > 0.002; return g; };
-  g.setColor = (c) => { all.forEach((h) => h.setColor(c)); return g; };
-  g.setGlitch = (v) => { all.forEach((h) => h.setGlitch(v)); return g; };
+  g.setOpacity = (a) => { op = a; for (const m of Object.values(poses)) { m.setOpacity(a); m.visible = m === cur && a > 0.002; } g.visible = a > 0.002; return g; };
+  g.setColor = (c) => { for (const m of Object.values(poses)) m.setColor(c); return g; };
+  g.setGlitch = (v) => { for (const m of Object.values(poses)) m.setGlitch(v); return g; };
   return g;
 }
 
@@ -582,13 +576,17 @@ export function hand(o = {}) {
   return grp;
 }
 
-// Extruded profile head (the v1 silhouette given depth) — a holographic bust.
+// Sculpted classical bust (after Michelangelo's David). Faces +z.
 export function bust(o = {}) {
-  const pts = profileShape(0, 0, 1);
-  const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x / 100, -y / 100)));
-  const geom = new THREE.ExtrudeGeometry(shape, { depth: o.depth || 1.2, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.12, bevelSegments: 4, curveSegments: 8 });
-  geom.center();
-  return holo(geom, { color: o.color || C.cyan, threshold: 18, base: o.base || 0.02, points: o.points !== false, pointSize: 1.0, axis: 1, fillIntensity: 0.5 });
+  const m = organic(bustSculpt(), { color: o.color || C.cyan, pointEvery: 16, fillIntensity: 0.22, lineOpacity: 0.42 });
+  const g = new THREE.Group();
+  m.scale.setScalar(1.15);
+  m.position.y = -1.2;
+  m.rotation.y = Math.PI / 2; // profile toward camera, facing +x like the old silhouette
+  g.add(m);
+  ['setOpacity', 'setColor', 'setGlitch'].forEach((k) => (g[k] = (v) => { m[k](v); g.visible = k !== 'setOpacity' || v > 0.002; return g; }));
+  g.setReveal = (v) => { m.setPrint(clamp((v + 3) / 6)); return g; };
+  return g;
 }
 
 // Earth as a point cloud of land

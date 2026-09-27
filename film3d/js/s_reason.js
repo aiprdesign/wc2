@@ -155,7 +155,7 @@ function throne(color) {
   add(new THREE.BoxGeometry(2.4, 0.3, 1.8), 0, 0.45, 0);
   add(new THREE.BoxGeometry(1.4, 3.4, 0.3), 0, 2.3, -0.7);
   add(new THREE.BoxGeometry(1.4, 0.2, 1.2), 0, 1.3, 0);
-  const f = figure({ color, points: true });
+  const f = figure({ color, poses: ['seated'] });
   f.scale.setScalar(1.35);
   f.position.set(0, 0.2, 0);
   f.pose({ lArm: -0.9, rArm: -0.9 });
