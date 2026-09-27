@@ -9,7 +9,7 @@ export function serve(root, port = 0) {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       const url = decodeURIComponent(req.url.split('?')[0]);
-      const file = path.join(root, url === '/' ? 'index.html' : url);
+      const file = path.join(root, url.endsWith('/') ? url + 'index.html' : url);
       if (!file.startsWith(root)) return res.writeHead(403).end();
       fs.readFile(file, (err, data) => {
         if (err) return res.writeHead(404).end();

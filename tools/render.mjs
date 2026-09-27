@@ -1,7 +1,7 @@
 // Export the film to MP4 (H.264 + AAC) with its score, plus an SRT of the voiceover.
 //
 //   npm install            # playwright
-//   FFMPEG=/path/to/ffmpeg node tools/render.mjs [out/the-inheritance.mp4] [--workers 3] [--from 0 --to 126]
+//   FFMPEG=/path/to/ffmpeg node tools/render.mjs [out/the-inheritance.mp4] [--film film3d] [--workers 3] [--from 0 --to 126]
 //
 // Frames are rendered headlessly by the same code the browser player uses, so the
 // export is frame-exact. Needs an ffmpeg build with libx264 and aac.
@@ -24,9 +24,9 @@ const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'inheritance-'));
 fs.mkdirSync(path.dirname(out), { recursive: true });
-const server = await serve(path.resolve(here, '../film'));
-const url = `http://127.0.0.1:${server.address().port}/?export`;
-const browser = await chromium.launch();
+const server = await serve(path.resolve(here, '..'));
+const url = `http://127.0.0.1:${server.address().port}/${opt('--film', 'film')}/?export`;
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
 async function openPage() {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
@@ -62,6 +62,7 @@ const started = Date.now();
 async function work(page, w) {
   for (let f = f0 + w; f < f1; f += workers) {
     const data = await page.evaluate((t) => {
+      if (window.FILM.capture) return window.FILM.capture(t, 0.95);
       window.FILM.frame(t);
       return document.getElementById('film').toDataURL('image/jpeg', 0.95);
     }, f / meta.fps);
