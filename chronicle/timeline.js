@@ -41,4 +41,4 @@ const CUES = STATIONS.map(([, , , line], i) => [stationTime(i) + 0.35, stationTi
 CUES.unshift([1.2, 4.6, 'Three thousand years of ideas, carried forward.']);
 CUES.push([DURATION - OUTRO + 1.0, DURATION - OUTRO + 4.2, 'Each generation inherited. Each generation added.']);
 CUES.push([DURATION - OUTRO + 4.6, DURATION - 2.0, 'What will ours add?']);
-function letterbox(t) { return 96 * (1 - E.io(seg(t, DURATION - OUTRO + 4.2, DURATION - OUTRO + 5.4))); }
+function letterbox() { return 0; }
