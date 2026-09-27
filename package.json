@@ -1,0 +1,14 @@
+{
+  "name": "the-inheritance",
+  "private": true,
+  "description": "THE INHERITANCE: a motion-graphics film celebrating the achievements of Western civilization, rendered in code.",
+  "type": "module",
+  "scripts": {
+    "serve": "node -e \"import('./tools/serve.mjs').then(m=>m.serve(process.cwd()+'/film',8080)).then(()=>console.log('http://127.0.0.1:8080'))\"",
+    "stills": "node tools/stills.mjs",
+    "render": "node tools/render.mjs out/the-inheritance.mp4"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
