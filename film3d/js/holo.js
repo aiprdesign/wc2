@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 
 export const C = {
   cyan: '#56d8ff',
@@ -460,59 +461,125 @@ export function figure(o = {}) {
   return g;
 }
 
-// A hand hologram pointing along -z (index extended, others curled).
+// A hand hologram pointing along -z: an organic surface blended from bones
+// (signed distance field, marching cubes), drawn as topographic contour lines
+// plus a point cloud of its skin.
+const HAND_CACHE = new Map();
+function sdCap(px, py, pz, a, b, r) {
+  const bax = b[0] - a[0], bay = b[1] - a[1], baz = b[2] - a[2];
+  const pax = px - a[0], pay = py - a[1], paz = pz - a[2];
+  const h = Math.max(0, Math.min(1, (pax * bax + pay * bay + paz * baz) / (bax * bax + bay * bay + baz * baz)));
+  const r2 = Array.isArray(r) ? lerp(r[0], r[1], h) : r;
+  return Math.hypot(pax - bax * h, pay - bay * h, paz - baz * h) - r2;
+}
+function smin(a, b, k) { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; }
+function handBones() {
+  const bones = [];
+  // palm: four metacarpals, flattened
+  [[-0.27, 0.105], [-0.09, 0.115], [0.09, 0.11], [0.26, 0.1]].forEach(([x, r]) => bones.push([[x * 0.8, 0, 0.42], [x, 0.01, -0.36], [r * 1.25, r], 1.7]));
+  bones.push([[0, 0, 0.5], [0, 0, 1.5], [0.24, 0.3], 1.25]); // wrist and forearm
+  // fingers: [x, lengths, radius, curls]
+  const F = [
+    [-0.27, [0.44, 0.26, 0.21], 0.083, [0.05, 0.08, 0.05]],
+    [-0.09, [0.48, 0.29, 0.22], 0.085, [1.3, 1.5, 0.9]],
+    [0.09, [0.45, 0.27, 0.21], 0.08, [1.35, 1.5, 0.9]],
+    [0.26, [0.35, 0.21, 0.18], 0.07, [1.4, 1.5, 0.9]],
+  ];
+  const ends = [];
+  F.forEach(([x, L, r, c]) => {
+    let p = [x, 0.01, -0.36], ang = 0;
+    L.forEach((len, k) => {
+      ang += c[k];
+      const q = [p[0] + (k ? 0 : x * 0.05), p[1] - Math.sin(ang) * len, p[2] - Math.cos(ang) * len];
+      bones.push([p, q, [r * (1 - k * 0.1), r * (0.9 - k * 0.1)], 1]);
+      p = q;
+    });
+    ends.push(p);
+  });
+  // thumb, curled in toward the palm
+  let p = [0.3, -0.04, 0.22];
+  [[0.36, [0.52, -0.25, -0.55]], [0.28, [0.25, -0.45, -0.7]], [0.22, [-0.1, -0.6, -0.6]]].forEach(([len, d], k) => {
+    const n = Math.hypot(...d), q = [p[0] + (d[0] / n) * len, p[1] + (d[1] / n) * len, p[2] + (d[2] / n) * len];
+    bones.push([p, q, [0.11 - k * 0.015, 0.095 - k * 0.015], 1]);
+    p = q;
+  });
+  return { bones, tip: ends[0] };
+}
+function handGeometry(res = 88) {
+  if (HAND_CACHE.has(res)) return HAND_CACHE.get(res);
+  const { bones, tip } = handBones();
+  const S = 1.7; // world half-extent mapped to the marching-cubes cube [-1,1]
+  const cz = 0.0;
+  const mc = new MarchingCubes(res, new THREE.MeshBasicMaterial(), false, false, 200000);
+  mc.isolation = 80;
+  const f = mc.field;
+  for (let z = 0; z < res; z++) for (let y = 0; y < res; y++) for (let x = 0; x < res; x++) {
+    const px = ((x / res) * 2 - 1) * S, py = ((y / res) * 2 - 1) * S, pz = ((z / res) * 2 - 1) * S + cz;
+    let d = 1e9;
+    for (const [a, b, r, fl] of bones) d = smin(d, sdCap(px, py * fl, pz, [a[0], a[1] * fl, a[2]], [b[0], b[1] * fl, b[2]], r), 0.09);
+    // knuckle ridges
+    f[x + y * res + z * res * res] = 80 - d * 900;
+  }
+  mc.update();
+  const n = mc.count;
+  const pos = mc.positionArray.slice(0, n * 3);
+  for (let i = 0; i < n * 3; i += 3) { pos[i] *= S; pos[i + 1] *= S; pos[i + 2] = pos[i + 2] * S + cz; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  // contour lines: slices across the hand in two directions
+  const lines = [];
+  const slice = (axis, step, off = 0) => {
+    for (let i = 0; i < n; i += 3) {
+      const v = [0, 1, 2].map((k) => [pos[(i + k) * 3], pos[(i + k) * 3 + 1], pos[(i + k) * 3 + 2]]);
+      const vals = v.map((p) => p[axis] / step + off);
+      const lo = Math.floor(Math.min(...vals)), hi = Math.floor(Math.max(...vals));
+      for (let L = lo + 1; L <= hi; L++) {
+        const pts = [];
+        for (let e = 0; e < 3; e++) {
+          const a = vals[e], b = vals[(e + 1) % 3];
+          if ((a - L) * (b - L) < 0) { const t = (L - a) / (b - a); pts.push(v[e].map((c, k) => lerp(c, v[(e + 1) % 3][k], t))); }
+        }
+        if (pts.length === 2) lines.push(...pts[0], ...pts[1]);
+      }
+    }
+  };
+  slice(2, 0.045);
+  slice(0, 0.07, 0.5);
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+  const out = { g, lg, tip };
+  HAND_CACHE.set(res, out);
+  return out;
+}
 export function hand(o = {}) {
   const color = o.color || C.cyan;
-  const g = new THREE.Group();
-  const s = o.scale || 1;
-  const parts = [];
-  const part = (geom) => { const h = holo(geom, { color, threshold: 25, base: 0.12, wireOpacity: 0.55, points: true, pointSize: 1.2 }); parts.push(h); return h; };
-  const palm = part(new THREE.BoxGeometry(0.8, 0.22, 0.9, 3, 1, 3));
-  palm.position.set(0, 0, 0.45);
-  g.add(palm);
-  const fingers = [];
-  const fx = [-0.3, -0.1, 0.1, 0.3];
-  const lens = [0.5, 0.55, 0.5, 0.4];
-  fx.forEach((x, i) => {
-    const root = new THREE.Group();
-    root.position.set(x, 0, 0);
-    let parent = root;
-    const segs = [];
-    for (let k = 0; k < 3; k++) {
-      const j = new THREE.Group();
-      const L = lens[i] * [0.45, 0.32, 0.25][k];
-      const m = part(cap(0.075 - k * 0.008, L));
-      m.rotation.x = Math.PI / 2;
-      m.position.z = -L / 2 - 0.04;
-      j.add(m);
-      j.position.z = k === 0 ? 0 : -(lens[i] * [0.45, 0.32, 0.25][k - 1]) - 0.06;
-      parent.add(j);
-      parent = j;
-      segs.push(j);
-    }
-    g.add(root);
-    fingers.push(segs);
-  });
-  const thumb = new THREE.Group();
-  const tm = part(cap(0.085, 0.35));
-  tm.rotation.x = Math.PI / 2;
-  tm.position.z = -0.2;
-  thumb.add(tm);
-  thumb.position.set(o.left ? 0.42 : -0.42, -0.02, 0.45);
-  thumb.rotation.y = o.left ? -0.6 : 0.6;
-  g.add(thumb);
-  g.scale.setScalar(s);
-  g.curl = (idx, others) => {
-    fingers.forEach((segs, i) => {
-      const c = i === (o.left ? 2 : 1) ? idx : others;
-      segs.forEach((j) => (j.rotation.x = -c * 1.2));
-    });
-    return g;
-  };
-  g.curl(0, 0.9);
-  g.setOpacity = (a) => { parts.forEach((h) => h.setOpacity(a)); g.visible = a > 0.002; return g; };
-  g.setColor = (c) => { parts.forEach((h) => h.setColor(c)); return g; };
-  return g;
+  const { g, lg, tip } = handGeometry();
+  const grp = new THREE.Group();
+  const inner = new THREE.Group();
+  // re-centre so the index fingertip matches the old hand's reach
+  inner.position.set(-tip[0] - 0.1, -tip[1], -tip[2] - 1.3);
+  if (o.left) inner.scale.x = -1;
+  grp.add(inner);
+  const fm = fillMat({ color, intensity: 0.5, base: 0.02, fresnel: 1.1 });
+  const mesh = new THREE.Mesh(g, fm);
+  const lm = lineMat({ color, intensity: 1.8 });
+  lm.uniforms.uOpacity.value = 0.55;
+  const ls = new THREE.LineSegments(lg, lm);
+  const pg = new THREE.BufferGeometry();
+  const pp = g.getAttribute('position').array, keep = [];
+  for (let i = 0; i < pp.length; i += 3 * 7) keep.push(pp[i], pp[i + 1], pp[i + 2]);
+  pg.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
+  pg.setAttribute('aSeed', new THREE.BufferAttribute(seeds(keep.length / 3, 5), 1));
+  const pm = pointsMat({ color, size: 1.0, intensity: 1.8, max: 2.5 });
+  pm.uniforms.uOpacity.value = 0.6;
+  inner.add(mesh, ls, new THREE.Points(pg, pm));
+  const mats = [fm, lm, pm], base = mats.map((m) => m.uniforms.uOpacity.value);
+  grp.scale.setScalar(o.scale || 1);
+  grp.curl = () => grp;
+  grp.setOpacity = (a) => { mats.forEach((m, i) => (m.uniforms.uOpacity.value = base[i] * a)); grp.visible = a > 0.002; return grp; };
+  grp.setColor = (c) => { mats.forEach((m) => m.uniforms.uColor.value.set(c)); return grp; };
+  return grp;
 }
 
 // Extruded profile head (the v1 silhouette given depth) — a holographic bust.
