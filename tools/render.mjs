@@ -52,6 +52,7 @@ if (args.includes('--audio-only')) {
   fs.copyFileSync(path.join(tmp, 'score.wav'), out.replace(/\.mp4$/, '.wav'));
   await browser.close();
   server.close();
+  fs.rmSync(tmp, { recursive: true, force: true });
   process.exit(0);
 }
 
