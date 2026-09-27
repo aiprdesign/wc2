@@ -9,10 +9,21 @@ and the score. There is no stock footage and there are no image assets. The
 same renderer drives the browser player and the MP4 export, so what you
 scrub in the browser is exactly what gets exported.
 
+There are two cuts, sharing one script, timeline, voiceover and score:
+
+- **`film3d/` — The Inheritance 3D** (current). Rebuilt in WebGL with three.js as
+  holograms: every object combines a fresnel-lit translucent fill, a wireframe
+  and a point cloud, and "prints" into existence along an axis. Words are
+  extruded 3D Cinzel lettering you fly through; HUD callouts pin names and
+  dates to the objects (Euclid c. 300 BC, Galileo 1610, Watt 1769, the Wright
+  Flyer 1903, Apollo 8 1968, the Web 1991). Bloom, chromatic aberration,
+  scanlines and a holographic dissolve between scenes finish the picture.
+- **`film/` — the 2D cut**: the original line-art and silhouette version.
+
 ## Watch it
 
 ```sh
-npm run serve          # then open http://127.0.0.1:8080
+npm run serve          # then open http://127.0.0.1:8080/film3d/  (or /film/ for the 2D cut)
 ```
 
 Use **Play with sound**; the score is composed in the browser the first time
@@ -24,14 +35,19 @@ second.
 
 ```sh
 npm install
-FFMPEG=/path/to/ffmpeg npm run render     # out/the-inheritance.mp4 + .srt
+FFMPEG=/path/to/ffmpeg npm run render:3d  # out/the-inheritance-3d.mp4 + .srt
+FFMPEG=/path/to/ffmpeg npm run render     # the 2D cut
 ```
+
+The 3D export renders through headless Chromium's software WebGL
+(SwiftShader), so it takes a while: roughly 30 minutes for the full film on
+four cores.
 
 The export needs an ffmpeg with `libx264` and `aac`. It renders frames headlessly
 with Playwright's Chromium, renders the score offline, and muxes them. The
 `.srt` sidecar holds the voiceover timings for a narrator or for subtitles.
 
-`npm run stills -- <dir> 12.5 40 75` writes individual frames for review.
+`npm run stills -- --film film3d <dir> 12.5 40 75` writes individual frames for review.
 
 ## Structure
 
@@ -65,6 +81,20 @@ scene windows in `T`, both in `film/js/timeline.js`.
 ## Code
 
 ```
+film3d/
+  index.html        3D player page (import map for three.js)
+  js/holo.js        holographic materials and builders: fill/wire/points, reveal, glow,
+                    beams, grids, stars, 3D words, HUD labels, figures, hands, busts, Earth
+  js/engine3d.js    renderer, scene registry, holographic dissolve, bloom and lens pass
+  js/book3d.js      the book: real paper pages (v1 page art as textures), page turns
+  js/s_open.js      opening: hands of two generations, knowledge rising off the pages
+  js/s_reason.js    reason (Euclid → colonnade) and law (words, chamber, scale, press, birds)
+  js/s_mid.js       beauty, science, industry
+  js/s_late.js      connection (the map folds into a globe), medicine, exploration (Earthrise)
+  js/s_end.js       computation, entrusted, the chain, questions, legacy pullback, title
+  js/main.js        player and export hook
+  vendor/           three.js r186 and the addons used (MIT)
+  fonts/            Cinzel as three.js typeface JSON (tools/build-typeface.mjs)
 film/
   index.html        player page
   js/core.js        math, easing, polylines and morphing, light, 3D projection, textures
@@ -84,6 +114,7 @@ tools/
   stills.mjs        single frames
   serve.mjs         static server
   build-earth.mjs   regenerates film/data/earth.js
+  build-typeface.mjs converts Cinzel to three.js typeface JSON
 ```
 
 Each scene is a pure function of time, `draw(ctx, localTime)`, registered with
@@ -91,5 +122,6 @@ Each scene is a pure function of time, `draw(ctx, localTime)`, registered with
 
 ## Credits
 
+- 3D: [three.js](https://threejs.org/) (MIT), vendored in `film3d/vendor/`.
 - Map data: [Natural Earth](https://www.naturalearthdata.com/) (public domain), via `world-atlas`.
 - Typefaces: Cinzel (Natasha Raissa Yulvina) and Cormorant Garamond (Christian Thalmann), both under the SIL Open Font License; licences are in `film/fonts/`.
