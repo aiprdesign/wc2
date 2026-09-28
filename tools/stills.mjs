@@ -22,7 +22,7 @@ page.on('console', (m) => m.type() === 'error' && console.error('page:', m.text(
 page.on('response', (r) => r.status() >= 400 && console.error('http', r.status(), r.url()));
 page.on('pageerror', (e) => console.error('page error:', e.message));
 await page.goto(`http://127.0.0.1:${server.address().port}/${filmDir}/?export`);
-await page.waitForFunction(() => window.FILM_READY, null, { timeout: 30000 });
+await page.waitForFunction(() => window.FILM_READY, null, { timeout: 120000 });
 for (const t of times) {
   const data = await page.evaluate((t) => {
     if (window.FILM.capture) return window.FILM.capture(parseFloat(t), 0.85);

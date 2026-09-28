@@ -89,16 +89,21 @@ export class MB {
 
   // Build a holographic object normalised to `height` (base at y=0, centred).
   build(o = {}) {
-    const fillG = this.fill.length ? mergeGeometries(this.fill, false) : null;
-    const edgeG = this.edges.length ? mergeGeometries(this.edges.map((g) => { const c = new THREE.BufferGeometry(); c.setAttribute('position', g.getAttribute('position')); return c; }), false) : null;
-    const ea = edgeG ? edgeG.getAttribute('position').array : new Float32Array(0);
-    const pos = new Float32Array(ea.length + this.lines.length);
-    pos.set(ea, 0);
-    pos.set(this.lines, ea.length);
-    const lineG = new THREE.BufferGeometry();
-    lineG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    lineG.setAttribute('lineDistance', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3), 1));
-    lineG.computeBoundingBox();
+    // geometry is merged once and shared by every instance
+    if (!this._geo) {
+      const fillG = this.fill.length ? mergeGeometries(this.fill, false) : null;
+      const edgeG = this.edges.length ? mergeGeometries(this.edges.map((g) => { const c = new THREE.BufferGeometry(); c.setAttribute('position', g.getAttribute('position')); return c; }), false) : null;
+      const ea = edgeG ? edgeG.getAttribute('position').array : new Float32Array(0);
+      const pos = new Float32Array(ea.length + this.lines.length);
+      pos.set(ea, 0);
+      pos.set(this.lines, ea.length);
+      const lineG = new THREE.BufferGeometry();
+      lineG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      lineG.setAttribute('lineDistance', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3), 1));
+      lineG.computeBoundingBox();
+      this._geo = { fillG, lineG, pos };
+    }
+    const { fillG, lineG, pos } = this._geo;
     const bb = new THREE.Box3();
     if (fillG) { fillG.computeBoundingBox(); bb.copy(fillG.boundingBox); }
     bb.union(lineG.boundingBox);

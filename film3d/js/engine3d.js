@@ -60,10 +60,10 @@ class MixPass extends Pass {
 }
 
 const LENS = {
-  uniforms: { tDiffuse: { value: null }, uTime: U.time, uAberr: { value: 0.0015 }, uVig: { value: 0.9 }, uFlash: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uTime: U.time, uAberr: { value: 0.0015 }, uVig: { value: 0.9 }, uFlash: { value: 0 }, uZoom: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse; uniform float uTime; uniform float uAberr; uniform float uVig; uniform float uFlash; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uAberr; uniform float uVig; uniform float uFlash; uniform float uZoom; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main(){
       vec2 c = vUv - 0.5;
@@ -73,6 +73,12 @@ const LENS = {
       col.r = texture2D(tDiffuse, vUv + off).r;
       col.g = texture2D(tDiffuse, vUv).g;
       col.b = texture2D(tDiffuse, vUv - off).b;
+      if (uZoom > 0.0) {
+        // radial zoom blur for whip transitions
+        vec3 acc = col;
+        for (int i = 1; i < 10; i++) acc += texture2D(tDiffuse, 0.5 + c * (1.0 - uZoom * float(i) / 9.0)).rgb;
+        col = acc / 10.0;
+      }
       col *= 1.0 - smoothstep(0.15, 0.75, d) * uVig;
       col *= 0.96 + 0.04 * sin(vUv.y * 1080.0 * 1.5);
       col += (h(vUv * 1000.0 + fract(uTime * 7.0)) - 0.5) * 0.035;
@@ -123,6 +129,8 @@ export class Engine3D {
     const fx = (b && mix > 0.5 ? b : a) || {};
     this.bloom.strength = fx.bloom == null ? 0.9 : typeof fx.bloom === 'function' ? fx.bloom(t - fx.s) : fx.bloom;
     this.lens.uniforms.uFlash.value = fx.flash ? fx.flash(t - fx.s) : 0;
+    this.lens.uniforms.uAberr.value = fx.aberr ? fx.aberr(t - fx.s) : 0.0015;
+    this.lens.uniforms.uZoom.value = fx.zoom ? fx.zoom(t - fx.s) : 0;
     this.current = { a, b, mix, t };
     this.composer.render();
     return { a, b, mix };
