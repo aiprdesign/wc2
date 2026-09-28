@@ -11,7 +11,8 @@ import { model } from '../../film3d/js/models.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadReal, realModel, isReal, solidify } from './real.js';
 
-const SANS = '"Manrope", "Helvetica Neue", Arial, sans-serif';
+const SERIF = '"Cormorant Garamond", Garamond, "Times New Roman", serif';
+const CAPS = '"Cinzel", "Trajan Pro", "Times New Roman", serif';
 const GOLD = '#ffc36a', VIOLET = '#7b6cff', BLUE = '#4aa8ff';
 const TINT = { gold: [0.95, 0.66, 0.32], silver: [0.6, 0.66, 0.8], violet: [0.55, 0.48, 0.95] };
 const uPulse = { value: 0 };
@@ -41,6 +42,7 @@ function chromeMat(tint = TINT.gold, dim = 1) {
 
 // ---------- 3D type, one mesh per letter so every letter can move ----------
 let SANS3 = null;
+const TYPE3D = '../film3d/fonts/cinzel-600.typeface.json';
 const GLYPHS = new Map();
 function glyph(ch, size, depth) {
   const key = ch + size + ':' + depth;
@@ -131,9 +133,9 @@ function glassCard(labelTxt, idx, w = 4.4, h = 5.6) {
   g.fillStyle = hl; g.fillRect(0, 0, 440, 180);
   g.restore();
   path(); g.lineWidth = 2.5; g.strokeStyle = 'rgba(255,255,255,0.4)'; g.stroke();
-  g.font = `800 36px ${SANS}`; g.fillStyle = '#ffffff'; g.letterSpacing = '4px'; g.fillText(labelTxt, 32, 505);
-  g.font = `700 20px ${SANS}`; g.fillStyle = GOLD; g.letterSpacing = '3px'; g.fillText(String(idx + 1).padStart(2, '0'), 32, 58);
-  g.font = `700 26px ${SANS}`; g.fillStyle = 'rgba(255,255,255,0.7)'; g.letterSpacing = '0px'; g.fillText('↗', 392, 60);
+  g.font = `600 34px ${CAPS}`; g.fillStyle = '#ffffff'; g.letterSpacing = '4px'; g.fillText(labelTxt, 32, 505);
+  g.font = `600 20px ${CAPS}`; g.fillStyle = GOLD; g.letterSpacing = '3px'; g.fillText(String(idx + 1).padStart(2, '0'), 32, 58);
+  g.font = `500 30px ${SERIF}`; g.fillStyle = 'rgba(255,255,255,0.7)'; g.letterSpacing = '0px'; g.fillText('↗', 392, 60);
   g.fillStyle = GOLD; g.fillRect(32, 524, 64, 4);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
@@ -161,7 +163,7 @@ function fitModel(name, size, o = {}) {
 const heroColor = (i) => (i % 3 === 1 ? [C.cyan, C.ice] : [C.gold, C.goldHot]);
 
 scene3('intro', async () => {
-  SANS3 = new Font(await (await fetch('fonts/manrope-800.typeface.json')).json());
+  SANS3 = new Font(await (await fetch(TYPE3D)).json());
   await loadReal('models/');
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 6000);
@@ -729,9 +731,13 @@ scene3('intro', async () => {
   };
   function sansText(ctx, s, x, y, size, o = {}) {
     ctx.save();
-    ctx.font = `${o.weight || 800} ${size}px ${SANS}`;
-    ctx.letterSpacing = (o.spacing || 0) + 'px';
-    if (o.maxW) { const w = ctx.measureText(s).width; if (w > o.maxW) { size *= o.maxW / w; ctx.font = `${o.weight || 800} ${size}px ${SANS}`; } }
+    // serif throughout: Cinzel capitals for labels and figures, Cormorant Garamond for headlines
+    const caps = o.caps || (o.spacing || 0) >= 3;
+    if (!caps) size *= 1.14;
+    const font = (sz) => (caps ? `${(o.weight || 800) >= 700 ? 600 : 400} ${sz}px ${CAPS}` : `${o.italic ? 'italic ' : ''}500 ${sz}px ${SERIF}`);
+    ctx.font = font(size);
+    ctx.letterSpacing = (caps ? o.spacing || 0 : Math.max(0, o.spacing || 0)) + 'px';
+    if (o.maxW) { const w = ctx.measureText(s).width; if (w > o.maxW) { size *= o.maxW / w; ctx.font = font(size); } }
     ctx.textAlign = o.align || 'left'; ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
     if (o.grad) { const w = ctx.measureText(s).width, x0 = o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x; const g = ctx.createLinearGradient(x0, y - size, x0 + w, y); g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#ffe6b8'); g.addColorStop(1, GOLD); ctx.fillStyle = g; }
@@ -748,7 +754,7 @@ scene3('intro', async () => {
   }
   function pill(ctx, s, x, y, a, col = GOLD) {
     ctx.save(); ctx.globalAlpha = a;
-    ctx.font = `700 18px ${SANS}`; ctx.letterSpacing = '4px';
+    ctx.font = `600 17px ${CAPS}`; ctx.letterSpacing = '4px';
     const w = ctx.measureText(s).width + 40;
     ctx.beginPath(); ctx.roundRect(x, y - 30, w, 42, 21); ctx.fillStyle = 'rgba(255,195,106,0.12)'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = col; ctx.fillText(s, x + 20, y - 2);
@@ -779,7 +785,7 @@ scene3('intro', async () => {
     if (key === 'cards') {
       const b = Math.min(7, Math.floor(k / BEAT));
       riseText(ctx, 'Everything we build on.', 96, 230, 76, seg(k, 0.05, 0.6), { grad: true });
-      sansText(ctx, `${String(b + 1).padStart(2, '0')}`, 96, H - 110, 120, { weight: 800, color: '#ffffff', alpha: 0.9 });
+      sansText(ctx, `${String(b + 1).padStart(2, '0')}`, 96, H - 110, 120, { weight: 800, color: '#ffffff', alpha: 0.9, caps: true });
       sansText(ctx, `/ 08   ${FEATURES[b][1]}`, 270, H - 118, 26, { weight: 700, spacing: 6, color: GOLD });
     }
     if (key === 'heroes') {
@@ -789,8 +795,8 @@ scene3('intro', async () => {
       const pw = pill(ctx, year, 96, 360, seg(u, 0.02, 0.12) * out);
       sansText(ctx, kick, 96 + pw + 20, 358, 19, { weight: 700, spacing: 6, color: '#b9c4ff', alpha: seg(u, 0.05, 0.15) * out });
       riseText(ctx, head, 90, 500, 104, seg(u, 0.03, 0.4), { grad: true, alpha: out, spacing: -3, maxW: 880 });
-      if (val != null) sansText(ctx, counters(val, seg(u, 0.12, 0.8)), 96, 650, 88, { weight: 800, alpha: seg(u, 0.1, 0.2) * out });
-      sansText(ctx, val == null ? unit : unit.toUpperCase(), 100, val == null ? 640 : 694, val == null ? 34 : 19, { weight: 700, spacing: val == null ? 1 : 6, color: GOLD, alpha: seg(u, 0.15, 0.3) * out });
+      if (val != null) sansText(ctx, counters(val, seg(u, 0.12, 0.8)), 96, 650, 80, { weight: 800, alpha: seg(u, 0.1, 0.2) * out, caps: true });
+      sansText(ctx, val == null ? unit : unit.toUpperCase(), 100, val == null ? 640 : 694, val == null ? 34 : 19, { weight: 700, italic: true, spacing: val == null ? 1 : 6, color: GOLD, alpha: seg(u, 0.15, 0.3) * out });
       ctx.save(); ctx.globalAlpha = out; ctx.fillStyle = GOLD; ctx.fillRect(96, 575, 260 * E.expoOut(seg(u, 0.06, 0.4)), 3); ctx.restore();
       // progress ticks
       ctx.save(); for (let j = 0; j < HEROES.length; j++) { ctx.globalAlpha = j === i ? 1 : 0.5; ctx.fillStyle = j <= i ? GOLD : 'rgba(255,255,255,0.25)'; ctx.fillRect(96 + j * 30, H - 100, 22, j === i ? 5 : 3); } ctx.restore();
@@ -799,7 +805,7 @@ scene3('intro', async () => {
     if (key === 'timeline') {
       const y = -800 + TL.camU(k) * 2830;
       const a = seg(k, 0.1, 0.4) * (1 - seg(k, 3.55, 3.75));
-      sansText(ctx, yearText(Math.max(-750, Math.min(2025, y))), 96, H - 150, 190, { weight: 800, grad: true, alpha: a, spacing: -6 });
+      sansText(ctx, yearText(Math.max(-750, Math.min(2025, y))), 96, H - 150, 170, { weight: 800, grad: true, alpha: a, caps: true });
       sansText(ctx, eraOf(y), 102, H - 96, 24, { weight: 700, spacing: 8, color: '#dfe4ff', alpha: a });
       riseText(ctx, 'Three thousand years.', 96, 230, 70, seg(k, 0.1, 0.7), { alpha: 1 - seg(k, 3.4, 3.7) });
       sansText(ctx, 'ONE CONTINUOUS CONVERSATION', 100, 280, 19, { weight: 700, spacing: 6, color: GOLD, alpha: seg(k, 0.5, 0.9) * (1 - seg(k, 3.4, 3.7)) });
@@ -807,7 +813,7 @@ scene3('intro', async () => {
     if (key === 'globe') {
       riseText(ctx, 'Ideas travel.', 96, 330, 110, seg(k, 0.05, 0.5), { grad: true, spacing: -3 });
       const n = Math.min(8, Math.floor(k / BEAT) + 1);
-      sansText(ctx, counters(5500000000, seg(k, 0.2, 3.2)), 96, 500, 96, { weight: 800 });
+      sansText(ctx, counters(5500000000, seg(k, 0.2, 3.2)), 96, 500, 88, { weight: 800, caps: true });
       sansText(ctx, 'PEOPLE CONNECTED TODAY', 100, 546, 19, { weight: 700, spacing: 6, color: GOLD });
       sansText(ctx, `${n} / 8 CONTINENTAL LINKS`, 100, 600, 17, { weight: 700, spacing: 5, color: '#b9c4ff' });
       GL.arcs.forEach((a, i) => {
@@ -837,7 +843,7 @@ scene3('intro', async () => {
       const a = 1 - seg(k, gapT, gapT + 0.1);
       riseText(ctx, 'Built by millions of hands.', 96, 230, 76, seg(k, 0.05, 0.5), { grad: true, alpha: a, spacing: -2 });
       const n = Math.min(16, Math.floor(k / (BEAT / 2)) + 1);
-      sansText(ctx, String(n).padStart(2, '0'), 96, H - 110, 120, { weight: 800, alpha: a });
+      sansText(ctx, String(n).padStart(2, '0'), 96, H - 110, 120, { weight: 800, alpha: a, caps: true });
       sansText(ctx, '/ ∞', 270, H - 118, 30, { weight: 700, spacing: 4, color: GOLD, alpha: a });
     }
     if (key === 'finale') {
@@ -857,7 +863,7 @@ scene3('intro', async () => {
         const bw = 540, bx = W / 2 - bw / 2, by = H - 158 + (1 - E.expoOut(e)) * 30;
         const gr = ctx.createLinearGradient(bx, 0, bx + bw, 0); gr.addColorStop(0, '#ffd27f'); gr.addColorStop(1, '#ff9a48');
         ctx.beginPath(); ctx.roundRect(bx, by, bw, 66, 33); ctx.fillStyle = gr; ctx.shadowColor = 'rgba(255,170,80,0.7)'; ctx.shadowBlur = 40 + 20 * Math.sin(k * 4); ctx.fill();
-        ctx.shadowBlur = 0; ctx.font = `800 22px ${SANS}`; ctx.letterSpacing = '4px'; ctx.textAlign = 'center'; ctx.fillStyle = '#1a1206'; ctx.fillText('YOUR CHAPTER STARTS NOW  →', W / 2, by + 42);
+        ctx.shadowBlur = 0; ctx.font = `600 21px ${CAPS}`; ctx.letterSpacing = '4px'; ctx.textAlign = 'center'; ctx.fillStyle = '#1a1206'; ctx.fillText('YOUR CHAPTER STARTS NOW  →', W / 2, by + 42);
         ctx.restore();
       }
     }
