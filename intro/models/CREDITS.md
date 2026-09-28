@@ -8,6 +8,7 @@
 | `igea.glb` | *Igea* scan (Cyberware), via alecjacobson/common-3d-test-models | research test model, licence not stated |
 | `planck.glb` | *Max Planck* bust scan (MPI), via alecjacobson/common-3d-test-models | research test model, licence not stated |
 
+All models are shown in the intro's own marble-and-gilt material, not their original textures.
 The glTF files were re-packed with gltf-transform (textures resized to 1024 px, WebP).
 The two scans were decimated to 90k triangles with fast-simplification.
 Before any commercial release, clear or replace the two scans whose licence is not stated.

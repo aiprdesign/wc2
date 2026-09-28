@@ -643,3 +643,27 @@ export function saturnVTower() {
   b.lines = full.lines.slice(rocketOnly.lines.length);
   return b;
 }
+
+// ---------------------------------------------------------------- ASSEMBLED VERSIONS (still pieces, for the intro)
+// The Watt engine with its beam, flywheel, governor and connecting rods in place.
+export function wattAssembly() {
+  const b = new MB('Watt engine, assembled');
+  b.include(wattEngine());
+  b.include(wattBeam(), b.mat(-0.6, 9.5, 0));
+  b.include(wattFlywheel(), b.mat(5.2, 4.2, 0));
+  b.include(governor(), b.mat(2.8, 5.6, 1.2, 0, 0, 0, 1.3, 1.3, 1.3));
+  b.seg([-5.0, 9.4, 0.3], [-4.5, 4.9, 0.3]); // piston rod and parallel motion
+  b.seg([-5.0, 9.4, -0.3], [-4.5, 4.9, -0.3]);
+  b.seg([3.8, 9.4, 0.3], [5.2, 4.2 + 0.9, 0.3]); // connecting rod to the sun-and-planet gear
+  b.seg([3.8, 9.4, -0.3], [5.2, 4.2 + 0.9, -0.3]);
+  b.seg([-1, 9.0, 0], [-0.6, 9.3, 0]);
+  return b;
+}
+// The orrery with every planet arm set out around the sun.
+export function orreryFull() {
+  const b = new MB('Orrery, assembled');
+  b.include(orrery());
+  ORRERY_PLANETS.forEach((_, i) => b.include(orreryArm(i), b.mat(0, 0, 0, 0, 0.6 + i * 1.9, 0)));
+  b.sphere(0.5, 0, 3.4, 0, 20, 14, 'edge');
+  return b;
+}

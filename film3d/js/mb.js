@@ -101,9 +101,9 @@ export class MB {
       lineG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       lineG.setAttribute('lineDistance', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3), 1));
       lineG.computeBoundingBox();
-      this._geo = { fillG, lineG, pos };
+      this._geo = { fillG, lineG, pos, edgeVerts: ea.length / 3 };
     }
-    const { fillG, lineG, pos } = this._geo;
+    const { fillG, lineG, pos, edgeVerts } = this._geo;
     const bb = new THREE.Box3();
     if (fillG) { fillG.computeBoundingBox(); bb.copy(fillG.boundingBox); }
     bb.union(lineG.boundingBox);
@@ -143,6 +143,7 @@ export class MB {
     g.setGlitch = (v) => { g.mats.forEach((m) => (m.uniforms.uGlitch.value = v)); return g; };
     g.inner = inner;
     g.lineG = lineG;
+    g.edgeVerts = edgeVerts; // lineG holds feature edges first, then explicit lines (cables, lattice, rigging)
     g.fillG = fillG;
     // sample into a point cloud in the fitted frame
     g.sample = (n, seed = 1) => sampleModel(g, n, seed);

@@ -9,7 +9,7 @@ import { scene3 } from '../../film3d/js/engine3d.js';
 import { C, U, polyline, glow, grid, pointCloud, stars, lineMat, fillMat, beam, earthPoints, latLon } from '../../film3d/js/holo.js';
 import { model } from '../../film3d/js/models.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { loadReal, realModel, isReal, solidify } from './real.js';
+import { loadReal, realModel, isReal, sculpt } from './real.js';
 
 const SERIF = '"Cormorant Garamond", Garamond, "Times New Roman", serif';
 const CAPS = '"Cinzel", "Trajan Pro", "Times New Roman", serif';
@@ -145,16 +145,13 @@ function glassCard(labelTxt, idx, w = 4.4, h = 5.6) {
 }
 
 // real scanned / production models are drawn bigger: they carry the frame
-const SURFACE = {
-  parthenon: 'marble', pantheon: 'stone', notreDame: 'stone', duomo: 'brick', caravel: 'wood', violin: 'wood', column: 'marble',
-};
 const REAL_SIZE = { saturnV: 1.35, hubble: 0.95, camera: 1.0, igea: 0.95, planck: 0.95 };
 function fitModel(name, size, o = {}) {
   if (isReal(name)) size *= REAL_SIZE[name];
   const m = isReal(name)
     ? realModel(name, { height: size, color: o.color || C.gold, wireColor: o.wire || C.goldHot })
     : model(name, { height: size, color: o.color || C.gold, wireColor: o.wire || C.goldHot });
-  if (!isReal(name) && o.solid !== false) solidify(m, SURFACE[name]);
+  if (!isReal(name)) sculpt(m, name);
   const s = Math.min(1, (o.maxW || size * 1.8) / Math.max(m.width, m.depth));
   m.scale.setScalar(s);
   if (o.dim) m.baseOps = m.baseOps.map((v) => v * o.dim);
@@ -169,8 +166,8 @@ scene3('intro', async () => {
   const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 6000);
   // studio light for the solid models: a soft room, a warm key, a violet rim
   scene.environment = new THREE.PMREMGenerator(U.renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.5;
-  const key = new THREE.DirectionalLight(0xffd6a0, 1.7); key.position.set(3, 5, 4);
+  scene.environmentIntensity = 0.42;
+  const key = new THREE.DirectionalLight(0xffd6a0, 1.4); key.position.set(3, 5, 4);
   const rim = new THREE.DirectionalLight(0x8a7dff, 3.0); rim.position.set(-4, 2.5, -5);
   const rim2 = new THREE.DirectionalLight(0xffb060, 1.6); rim2.position.set(5, 1, -4);
   scene.add(key, rim, rim2);
@@ -371,7 +368,7 @@ scene3('intro', async () => {
     const heroes = HEROES.map(([name, , , , , year], i) => {
       const [col, wc] = heroColor(i);
       const hg = new THREE.Group(); hg.position.set(i * 500, 0, 0); g.add(hg);
-      const m = fitModel(name, 9.5, { color: col, wire: wc, maxW: 16, dim: 0.55 });
+      const m = fitModel(name, 9.5, { color: col, wire: wc, maxW: name === 'colosseum' ? 12.5 : 16, dim: 0.55 });
       const yr = word3(year, 6, { tint: i % 3 === 1 ? TINT.silver : TINT.gold, dim: 0.34, edge: 0.14 });
       hg.add(m, yr);
       return { hg, m, yr };
@@ -841,6 +838,7 @@ scene3('intro', async () => {
     if (key === 'wall') {
       const gapT = SEC.finale - BEAT - SEC.wall;
       const a = 1 - seg(k, gapT, gapT + 0.1);
+      { const sc = ctx.createLinearGradient(0, 0, 1100, 0); sc.addColorStop(0, `rgba(3,4,12,${0.8 * a})`); sc.addColorStop(1, 'rgba(3,4,12,0)'); ctx.fillStyle = sc; ctx.fillRect(0, 130, 1100, 150); }
       riseText(ctx, 'Built by millions of hands.', 96, 230, 76, seg(k, 0.05, 0.5), { grad: true, alpha: a, spacing: -2 });
       const n = Math.min(16, Math.floor(k / (BEAT / 2)) + 1);
       sansText(ctx, String(n).padStart(2, '0'), 96, H - 110, 120, { weight: 800, alpha: a, caps: true });

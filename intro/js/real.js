@@ -1,96 +1,46 @@
-/* Real 3D models — photogrammetry scans and production glTF assets — rendered
-   as solid, lit objects that "print" in from the floor behind a glowing seam,
-   dressed with a holographic edge/contour layer and a sampled point cloud.
-   Instances expose the same interface as the procedural MB models. */
+/* One look for every model in the intro: a museum collection in marble and
+   gilt. Masses are white marble; fine structure (lattice, struts, rigging,
+   orbits, strings) is gilded bronze tube; a faint gold line traces the feature
+   edges. Every model prints in from the floor behind the same glowing seam.
+   Two kinds of source share this treatment:
+     - real assets: NASA and Khronos glTF models, marble scans (loadReal/realModel)
+     - the procedural MB models (sculpt)
+   Both return the MB interface: setOpacity, setPrint, setGlitch, setColor,
+   width/height/depth, baseOps. */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { C, lineMat, pointsMat } from '../../film3d/js/holo.js';
+import { lineMat } from '../../film3d/js/holo.js';
 
-// file, an orientation fix, and how to draw the holographic layer
+// file, an orientation fix, and whether to trace feature edges
 export const REAL = {
-  saturnV: { file: 'saturnv.glb', lines: 'edges', angle: 40, exposure: 0.62 },
-  hubble: { file: 'hubbleA.glb', lines: 'edges', angle: 40, exposure: 0.85 },
-  camera: { file: 'camera.glb', lines: 'edges', angle: 45 },
-  igea: { file: 'igea.glb', lines: 'contours', marble: true, rot: [0, 0, 0] },
-  planck: { file: 'planck.glb', lines: 'contours', marble: true, rot: [0, Math.PI, 0] },
+  saturnV: { file: 'saturnv.glb', edges: 40 },
+  hubble: { file: 'hubbleA.glb', edges: 40 },
+  camera: { file: 'camera.glb', edges: 50 },
+  igea: { file: 'igea.glb' },
+  planck: { file: 'planck.glb', rot: [0, Math.PI, 0] },
 };
-const LIB = new Map();
-
-// horizontal contour lines through a mesh: the look of a topographic scan
-function contours(geo, count) {
-  const p = geo.attributes.position.array, idx = geo.index ? geo.index.array : null;
-  const n = idx ? idx.length : p.length / 3;
-  let lo = Infinity, hi = -Infinity;
-  for (let i = 1; i < p.length; i += 3) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); }
-  const step = (hi - lo) / count, out = [];
-  const v = (k) => { const j = (idx ? idx[k] : k) * 3; return [p[j], p[j + 1], p[j + 2]]; };
-  for (let t = 0; t < n; t += 3) {
-    const a = v(t), b = v(t + 1), c = v(t + 2);
-    const y0 = Math.min(a[1], b[1], c[1]), y1 = Math.max(a[1], b[1], c[1]);
-    for (let k = Math.ceil((y0 - lo) / step); lo + k * step <= y1; k++) {
-      const y = lo + k * step, hit = [];
-      for (const [u, w] of [[a, b], [b, c], [c, a]]) {
-        if ((u[1] - y) * (w[1] - y) < 0) { const s = (y - u[1]) / (w[1] - u[1]); hit.push(u[0] + (w[0] - u[0]) * s, y, u[2] + (w[2] - u[2]) * s); }
-      }
-      if (hit.length === 6) out.push(...hit);
-    }
-  }
-  return new Float32Array(out);
-}
-
-// Loads every model once: geometry is baked into model space, based at y=0.
-export async function loadReal(base = 'models/') {
-  const loader = new GLTFLoader();
-  for (const [name, s] of Object.entries(REAL)) {
-    const gltf = await loader.loadAsync(base + s.file);
-    const root = gltf.scene;
-    if (s.rot) root.rotation.set(...s.rot);
-    root.updateMatrixWorld(true);
-    const parts = [];
-    root.traverse((o) => {
-      if (!o.isMesh) return;
-      const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
-      if (!g.attributes.normal) g.computeVertexNormals();
-      parts.push({ geo: g, mat: o.material });
-    });
-    const bb = new THREE.Box3();
-    parts.forEach((q) => { q.geo.computeBoundingBox(); bb.union(q.geo.boundingBox); });
-    const off = new THREE.Vector3(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
-    parts.forEach((q) => q.geo.translate(off.x, off.y, off.z));
-    bb.translate(off);
-    const size = bb.getSize(new THREE.Vector3());
-    // position-only merged copy for sampling and line extraction
-    const bare = mergeGeometries(parts.map((q) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', q.geo.attributes.position); if (q.geo.index) g.setIndex(q.geo.index); return g; }), false);
-    let lines;
-    if (s.lines === 'contours') lines = contours(bare, 70);
-    else {
-      const eg = mergeGeometries(parts.map((q) => { const e = new THREE.EdgesGeometry(q.geo, s.angle || 35); const g = new THREE.BufferGeometry(); g.setAttribute('position', e.attributes.position); return g; }), false);
-      lines = eg.attributes.position.array;
-    }
-    const lineG = new THREE.BufferGeometry();
-    lineG.setAttribute('position', new THREE.BufferAttribute(lines, 3));
-    lineG.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(lines.length / 3), 1));
-    const sampler = new MeshSurfaceSampler(new THREE.Mesh(bare)).setRandomGenerator(rng(7)).build();
-    const N = 14000, sp = new Float32Array(N * 3), sd = new Float32Array(N), tv = new THREE.Vector3(), R = rng(3);
-    for (let i = 0; i < N; i++) { sampler.sample(tv); sp.set([tv.x, tv.y, tv.z], i * 3); sd[i] = R(); }
-    const ptG = new THREE.BufferGeometry();
-    ptG.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    ptG.setAttribute('aSeed', new THREE.BufferAttribute(sd, 1));
-    LIB.set(name, { parts, bb, size, lineG, ptG, s });
-  }
-}
 export const isReal = (name) => name in REAL;
 
-const MARBLE = { color: new THREE.Color('#b3aa9b'), roughness: 0.46, metalness: 0.0 };
+// the collection's two materials and its edge line
+const MARBLE = { color: '#a39b8d', roughness: 0.45, metalness: 0 };
+const GILT = { color: '#d1a04a', roughness: 0.3, metalness: 1 };
+const EDGE = '#ffcf85';
+
+// procedural models whose explicit lines are structure, drawn as gilt tube (radius as a fraction of height)
+const TUBES = { eiffel: 0.0022, wrightFlyer: 0.0035, caravel: 0.0016, orreryFull: 0.009, dna: 0.006, violin: 0.0025, vitruvian: 0.006, galileoScope: 0.004, wattAssembly: 0.005, press: 0.004 };
 
 // the reveal: discard above the print line, a hot seam just below it
 function withReveal(mat, reveal) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uReveal = reveal.y;
     sh.uniforms.uSeam = reveal.seam;
-    sh.vertexShader = 'varying float vRY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRY = position.y;');
+    sh.vertexShader = 'varying float vRY;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+  #ifdef USE_INSTANCING
+    vRY = (instanceMatrix * vec4(transformed, 1.0)).y;
+  #else
+    vRY = position.y;
+  #endif`);
     sh.fragmentShader = 'uniform float uReveal; uniform float uSeam; varying float vRY;\n' + sh.fragmentShader
       .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n  if (vRY > uReveal) discard;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(1.0, 0.72, 0.36) * smoothstep(uSeam, 0.0, uReveal - vRY) * 4.0;');
@@ -98,82 +48,134 @@ function withReveal(mat, reveal) {
   mat.customProgramCacheKey = () => 'reveal';
   return mat;
 }
+function surface(P, reveal) {
+  return withReveal(new THREE.MeshStandardMaterial({ ...P, color: new THREE.Color(P.color), transparent: true, side: THREE.DoubleSide }), reveal);
+}
 
-export function realModel(name, o = {}) {
-  const L = LIB.get(name);
-  const scale = o.height ? o.height / L.size.y : 1;
-  const inner = new THREE.Group();
-  inner.scale.setScalar(scale);
-  const g = new THREE.Group();
-  g.add(inner);
-  const reveal = { y: { value: 1e6 }, seam: { value: L.size.y * 0.04 } };
-  // solid pass
-  const solids = L.parts.map((q) => {
-    let m;
-    if (L.s.marble) m = new THREE.MeshStandardMaterial({ ...MARBLE });
-    else { m = (Array.isArray(q.mat) ? q.mat[0] : q.mat).clone(); if (m.color) m.color.multiplyScalar(L.s.exposure || 1); }
-    m.envMapIntensity = o.env == null ? 1 : o.env;
-    m.transparent = true;
-    m.side = THREE.DoubleSide;
-    withReveal(m, reveal);
-    const mesh = new THREE.Mesh(q.geo, m);
-    inner.add(mesh);
-    return m;
-  });
-  // holographic dress
-  const color = o.color || C.gold;
-  const lm = lineMat({ color: o.wireColor || color, intensity: 1.6 });
-  const pm = pointsMat({ color: o.wireColor || color, size: 0.9, intensity: 1.8, max: 2.5 });
-  inner.add(new THREE.LineSegments(L.lineG, lm), new THREE.Points(L.ptG, pm));
-  g.mats = [lm, pm];
-  const lineBase = L.s.lines === 'contours' ? 0.18 : clamp(0.9 * Math.sqrt(4000 / Math.max(1, L.lineG.attributes.position.count / 2)), 0.1, 0.6);
-  g.baseOps = [lineBase * (o.holo == null ? 1 : o.holo), 0.22 * (o.holo == null ? 1 : o.holo)];
-  g.solidOp = o.solid == null ? 1 : o.solid;
-  g.height = L.size.y * scale; g.width = L.size.x * scale; g.depth = L.size.z * scale;
-  g.bb = L.bb;
+// Shared finishing for both kinds of model: solids, optional tubes, the edge line, and the MB interface.
+function finish(g, inner, bb, o) {
+  const H = bb.max.y - bb.min.y;
+  const reveal = { y: { value: 1e6 }, seam: { value: H * 0.035 } };
+  const solids = [];
+  (o.meshes || []).forEach((geo) => { const m = surface(MARBLE, reveal); inner.add(new THREE.Mesh(geo, m)); solids.push(m); });
+  if (o.tubes) {
+    const m = surface(GILT, reveal);
+    const im = new THREE.InstancedMesh(TUBE_GEO, m, o.tubes.count);
+    im.instanceMatrix = o.tubes;
+    im.frustumCulled = false;
+    inner.add(im);
+    solids.push(m);
+  }
+  const lm = lineMat({ color: EDGE, intensity: 1 });
+  if (o.lineG && o.lineG.drawRange.count !== 0) inner.add(new THREE.LineSegments(o.lineG, lm));
+  const segsN = o.lineG ? Math.min(o.lineG.drawRange.count, o.lineG.attributes.position.count) / 2 : 0;
+  g.mats = [lm];
+  g.baseOps = [clamp(0.5 * Math.sqrt(3000 / Math.max(1, segsN)), 0.06, 0.3)];
+  g.bb = bb;
   g.inner = inner;
   g.setOpacity = (a) => {
     g.mats.forEach((m, i) => (m.uniforms.uOpacity.value = g.baseOps[i] * a));
-    solids.forEach((m) => { m.opacity = a * g.solidOp; m.depthWrite = a * g.solidOp > 0.6; });
+    solids.forEach((m) => { m.opacity = a; m.depthWrite = a > 0.6; });
     g.visible = a > 0.002;
     return g;
   };
-  // print: 0..1 bottom to top; the holo layer leads the solid by a little
+  // print: 0..1 bottom to top; the gold line leads the stone by a little
   g.setPrint = (f) => {
-    const H = L.size.y, y = lerp(-0.02 * H, 1.06 * H, f);
-    reveal.y.value = y - 0.06 * H;
+    const y = lerp(bb.min.y - 0.02 * H, bb.max.y + 0.06 * H, f);
+    reveal.y.value = y - 0.05 * H;
     g.mats.forEach((m) => { m.uniforms.uReveal.value = y; m.uniforms.uEdge.value = H * 0.03; });
     return g;
   };
   g.setGlitch = (v) => { g.mats.forEach((m) => (m.uniforms.uGlitch.value = v)); return g; };
-  g.setColor = (c) => { g.mats.forEach((m) => m.uniforms.uColor.value.set(c)); return g; };
+  g.setColor = () => g; // the collection has one palette
   return g;
 }
 
-// Solid, lit materials for the procedural models: the holographic fill is
-// swapped for a real surface that prints in under the same seam.
-const PRESETS = {
-  marble: { color: '#b8ae9f', roughness: 0.5, metalness: 0 },
-  stone: { color: '#9a8a74', roughness: 0.75, metalness: 0 },
-  brick: { color: '#a0583c', roughness: 0.7, metalness: 0 },
-  wood: { color: '#6e4b2c', roughness: 0.62, metalness: 0 },
-  brass: { color: '#c08f3e', roughness: 0.32, metalness: 1 },
-  iron: { color: '#5a4a40', roughness: 0.5, metalness: 0.85 },
-  steel: { color: '#8d96a3', roughness: 0.35, metalness: 0.9 },
-  fabric: { color: '#cbbd9c', roughness: 0.8, metalness: 0 },
-};
-export function solidify(m, preset) {
-  const P = PRESETS[preset];
-  if (!P || !m.mesh) return m;
-  const mat = new THREE.MeshStandardMaterial({ ...P, color: new THREE.Color(P.color), transparent: true, side: THREE.DoubleSide });
+// ---------- gilt tube: explicit line segments as instanced cylinders ----------
+const TUBE_GEO = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+const TUBE_CACHE = new Map();
+function tubesFor(key, pos, from, radius) {
+  if (TUBE_CACHE.has(key)) return TUBE_CACHE.get(key);
+  const n = (pos.length / 3 - from) / 2;
+  const attr = new THREE.InstancedBufferAttribute(new Float32Array(n * 16), 16);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), M = new THREE.Matrix4(), Y = new THREE.Vector3(0, 1, 0);
+  let k = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (from + i * 2) * 3;
+    a.fromArray(pos, j); b.fromArray(pos, j + 3);
+    d.subVectors(b, a);
+    const len = d.length();
+    if (len < 1e-6) continue;
+    q.setFromUnitVectors(Y, d.divideScalar(len));
+    M.compose(a.add(b).multiplyScalar(0.5), q, s.set(radius, len, radius));
+    M.toArray(attr.array, k++ * 16);
+  }
+  const out = k < n ? new THREE.InstancedBufferAttribute(attr.array.slice(0, k * 16), 16) : attr;
+  TUBE_CACHE.set(key, out);
+  return out;
+}
+
+// ---------- procedural models ----------
+export function sculpt(m, name) {
   const H = m.bb.max.y - m.bb.min.y;
-  const reveal = { y: { value: 1e6 }, seam: { value: H * 0.04 } };
-  withReveal(mat, reveal);
-  const solid = new THREE.Mesh(m.mesh.geometry, mat);
-  m.inner.add(solid);
-  m.baseOps = m.baseOps.map((v, i) => (i === 0 ? v * 0.2 : v * 0.55));
-  const so = m.setOpacity, sp = m.setPrint;
-  m.setOpacity = (a) => { so(a); mat.opacity = a; mat.depthWrite = a > 0.6; return m; };
-  m.setPrint = (f) => { sp(f); reveal.y.value = lerp(m.bb.min.y - 0.02 * H, m.bb.max.y + 0.02 * H, f) - 0.06 * H; return m; };
+  if (m.mesh) m.mesh.visible = false;
+  m.inner.children.forEach((c) => { if (c.isLineSegments) c.visible = false; });
+  const pos = m.lineG.attributes.position.array;
+  const tubes = TUBES[name] && pos.length / 3 > m.edgeVerts ? tubesFor(name, pos, m.edgeVerts, H * TUBES[name]) : null;
+  // edges only when tubes carry the structure; otherwise edges and engraved detail lines
+  const lineG = new THREE.BufferGeometry();
+  lineG.setAttribute('position', m.lineG.attributes.position);
+  lineG.setAttribute('lineDistance', m.lineG.attributes.lineDistance);
+  lineG.setDrawRange(0, tubes ? m.edgeVerts : pos.length / 3);
+  const w = m.width, h = m.height, dp = m.depth;
+  finish(m, m.inner, m.bb, { meshes: m.fillG ? [m.fillG] : [], tubes, lineG });
+  m.width = w; m.height = h; m.depth = dp;
   return m;
+}
+
+// ---------- real assets ----------
+const LIB = new Map();
+export async function loadReal(base = 'models/') {
+  const loader = new GLTFLoader();
+  for (const [name, s] of Object.entries(REAL)) {
+    const root = (await loader.loadAsync(base + s.file)).scene;
+    if (s.rot) root.rotation.set(...s.rot);
+    root.updateMatrixWorld(true);
+    const geos = [];
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      const g = new THREE.BufferGeometry();
+      const src = o.geometry.clone().applyMatrix4(o.matrixWorld);
+      g.setAttribute('position', src.attributes.position);
+      if (src.attributes.normal) g.setAttribute('normal', src.attributes.normal);
+      if (src.index) g.setIndex(src.index);
+      if (!g.attributes.normal) g.computeVertexNormals();
+      geos.push(g);
+    });
+    const geo = mergeGeometries(geos, false);
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox.clone();
+    geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
+    geo.computeBoundingBox();
+    let lineG = null;
+    if (s.edges) {
+      const e = new THREE.EdgesGeometry(geo, s.edges);
+      lineG = new THREE.BufferGeometry();
+      lineG.setAttribute('position', e.attributes.position);
+      lineG.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(e.attributes.position.count), 1));
+    }
+    LIB.set(name, { geo, bb: geo.boundingBox.clone(), lineG });
+  }
+}
+export function realModel(name, o = {}) {
+  const L = LIB.get(name);
+  const size = L.bb.getSize(new THREE.Vector3());
+  const scale = o.height ? o.height / size.y : 1;
+  const inner = new THREE.Group();
+  inner.scale.setScalar(scale);
+  const g = new THREE.Group();
+  g.add(inner);
+  finish(g, inner, L.bb, { meshes: [L.geo], lineG: L.lineG });
+  g.height = size.y * scale; g.width = size.x * scale; g.depth = size.z * scale;
+  return g;
 }

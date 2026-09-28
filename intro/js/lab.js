@@ -1,8 +1,8 @@
 /* Model lab: models from three angles under the intro's lighting.
-   ?print=0.6 tests the reveal; ?proc=name:preset,... shows procedural models made solid. */
+   ?print=0.6 tests the reveal; ?m=name,name,... picks the models (procedural or real). */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { loadReal, realModel, REAL, solidify } from './real.js';
+import { loadReal, realModel, REAL, sculpt, isReal } from './real.js';
 import { model } from '../../film3d/js/models.js';
 
 const q = new URLSearchParams(location.search);
@@ -17,11 +17,11 @@ const key = new THREE.DirectionalLight(0xffd6a0, 1.7); key.position.set(3, 5, 4)
 const rim = new THREE.DirectionalLight(0x8a7dff, 3.0); rim.position.set(-4, 2.5, -5); scene.add(rim);
 await loadReal('models/');
 const pr = parseFloat(q.get('print') || '1');
-const list = q.get('proc') ? q.get('proc').split(',').map((s) => s.split(':')) : Object.keys(REAL).map((n) => [n]);
+const list = (q.get('m') ? q.get('m').split(',') : Object.keys(REAL)).map((n) => [n]);
 const cols = 3, w = 1920 / cols, h = 1080 / list.length;
 const cam = new THREE.PerspectiveCamera(35, w / h, 0.01, 500);
-list.forEach(([n, preset], row) => {
-  const m = preset ? solidify(model(n, { height: 4 }), preset) : realModel(n, { height: 4 });
+list.forEach(([n], row) => {
+  const m = isReal(n) ? realModel(n, { height: 4 }) : sculpt(model(n, { height: 4 }), n);
   m.setOpacity(1).setPrint(pr);
   scene.add(m);
   [0.5, Math.PI / 2 + 0.3, Math.PI].forEach((a, col) => {

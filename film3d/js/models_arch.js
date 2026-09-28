@@ -132,45 +132,46 @@ export function colosseum() {
   const A = 94, B = 78, N = 80;
   const levels = [[0, 10.5], [10.5, 11.8], [22.3, 11.6]];
   const P = (q, a = A, bb = B) => [Math.cos(q) * a, Math.sin(q) * bb];
-  // outer wall as a band
-  b.put(new THREE.CylinderGeometry(1, 1, 48.5, 160, 4, true), b.mat(0, 24.25, 0, 0, 0, 0, A, 1, B), 'none');
+  // outer wall: every bay of every storey is a pier-and-arch panel cut through the wall
   for (const [y0, h] of levels) {
     for (let i = 0; i < N; i++) {
       const q = (i / N) * TAU, q2 = ((i + 1) / N) * TAU, qm = (q + q2) / 2;
       const [x1, z1] = P(q), [x2, z2] = P(q2), [xm, zm] = P(qm);
-      const tx = (x2 - x1), tz = (z2 - z1), len = Math.hypot(tx, tz);
-      const ux = tx / len, uz = tz / len;
-      // arch opening in this bay
-      const w = len * 0.62, sp = y0 + h * 0.55;
-      const arc = roundArch(w, 10).map(([u, v]) => [xm + ux * u, sp + v, zm + uz * u]);
-      b.line([[xm - ux * w / 2, y0, zm - uz * w / 2], ...arc, [xm + ux * w / 2, y0, zm + uz * w / 2]]);
-      // engaged half column at the pier
-      b.seg([x1 * 1.012, y0, z1 * 1.012], [x1 * 1.012, y0 + h - 1.2, z1 * 1.012]);
-      b.seg([x1 * 1.018, y0 + 0.4, z1 * 1.018], [x1 * 1.018, y0 + h - 1.6, z1 * 1.018]);
+      const tx = x2 - x1, tz = z2 - z1, len = Math.hypot(tx, tz), L = len * 0.51;
+      const w = len * 0.6, sp = h * 0.52;
+      const arc = [];
+      for (let k = 0; k <= 10; k++) { const a = Math.PI - (k / 10) * Math.PI; arc.push([Math.cos(a) * w / 2, sp + Math.sin(a) * w / 2]); }
+      b.extrude([[-L, 0], [-w / 2, 0], ...arc, [w / 2, 0], [L, 0], [L, h - 1.3], [-L, h - 1.3]], 2.6, xm, y0, zm, 0, Math.atan2(-tz, tx), 0, [], 'edge');
+      // engaged half column on the pier
+      const [xc, zc] = P(q, A + 1.3, B + 1.3);
+      b.cyl(0.62, 0.7, h - 1.3, 8, xc, y0 + (h - 1.3) / 2, zc);
     }
-    b.ring(0, y0 + h - 1.0, 0, A * 1.015, 160, 'y', 0, TAU, B * 1.015);
-    b.ring(0, y0 + h - 0.4, 0, A * 1.025, 160, 'y', 0, TAU, B * 1.025);
+    // entablature band over each storey
+    b.put(new THREE.CylinderGeometry(1, 1, 1.3, 160, 1, true), b.mat(0, y0 + h - 0.65, 0, 0, 0, 0, A + 1.6, 1, B + 1.6), 'edge');
   }
-  // attic with windows and corbels
+  // attic storey with its windows and corbels
+  b.put(new THREE.CylinderGeometry(1, 1, 14.5, 160, 1, true), b.mat(0, 34 + 7.25, 0, 0, 0, 0, A, 1, B), 'edge');
+  b.put(new THREE.CylinderGeometry(1, 1, 1, 160, 1, true), b.mat(0, 48, 0, 0, 0, 0, A + 1.2, 1, B + 1.2), 'edge');
   for (let i = 0; i < N; i++) {
     const q = ((i + 0.5) / N) * TAU, [x, z] = P(q);
     if (i % 2 === 0) b.line([[x * 1.005, 38, z * 1.005], [x * 1.005, 40.4, z * 1.005]]);
     b.seg([x * 1.01, 45.5, z * 1.01], [x * 1.03, 46.5, z * 1.03]);
   }
-  b.ring(0, 48.5, 0, A, 160, 'y', 0, TAU, B);
-  b.ring(0, 34, 0, A, 160, 'y', 0, TAU, B);
-  // cavea: seating tiers down to the arena
-  for (let k = 0; k <= 12; k++) {
-    const t = k / 12;
-    b.ring(0, lerp(40, 4, t), 0, lerp(A - 6, 44, t), 128, 'y', 0, TAU, lerp(B - 6, 28, t));
+  // cavea: stepped seating down to the arena
+  const prof = [[40, 0], [40, 4]];
+  for (let k = 0; k < 12; k++) {
+    const r0 = lerp(44, A - 4, k / 12), r1 = lerp(44, A - 4, (k + 1) / 12), y = lerp(4, 40, (k + 1) / 12);
+    prof.push([r0, y], [r1, y]);
   }
-  for (let i = 0; i < 40; i++) {
-    const q = (i / 40) * TAU;
-    b.seg([Math.cos(q) * (A - 6), 40, Math.sin(q) * (B - 6)], [Math.cos(q) * 44, 4, Math.sin(q) * 28]);
-  }
-  b.ring(0, 0.2, 0, 43, 96, 'y', 0, TAU, 27);
-  // hypogeum
-  for (let i = -6; i <= 6; i++) b.seg([i * 5, 0.2, -18], [i * 5, 0.2, 18]);
+  prof.push([A - 1, 40], [A - 1, 0]);
+  b.lathe(prof, 96, 0, 0, 0, 'edge', 30);
+  b.fill[b.fill.length - 1].scale(1, 1, B / A);
+  b.edges[b.edges.length - 1].scale(1, 1, B / A);
+  // arena floor and the hypogeum walls
+  b.cyl(43, 43, 0.4, 64, 0, 0.2, 0, 0, 0, 0, 'edge');
+  b.fill[b.fill.length - 1].scale(1, 1, 27 / 43);
+  b.edges[b.edges.length - 1].scale(1, 1, 27 / 43);
+  for (let i = -6; i <= 6; i++) b.seg([i * 5, 0.45, -18], [i * 5, 0.45, 18]);
   return b;
 }
 
