@@ -95,6 +95,7 @@ export class Engine3D {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    U.renderer = this.renderer; // scenes that need PMREM environments read it at build time
     this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType }));
     this.composer.setPixelRatio(1);
     this.composer.setSize(W, H);

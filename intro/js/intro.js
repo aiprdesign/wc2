@@ -8,6 +8,8 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { scene3 } from '../../film3d/js/engine3d.js';
 import { C, U, polyline, glow, grid, pointCloud, stars, lineMat, fillMat, beam, earthPoints, latLon } from '../../film3d/js/holo.js';
 import { model } from '../../film3d/js/models.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadReal, realModel, isReal, solidify } from './real.js';
 
 const SANS = '"Manrope", "Helvetica Neue", Arial, sans-serif';
 const GOLD = '#ffc36a', VIOLET = '#7b6cff', BLUE = '#4aa8ff';
@@ -140,8 +142,17 @@ function glassCard(labelTxt, idx, w = 4.4, h = 5.6) {
   return mesh;
 }
 
+// real scanned / production models are drawn bigger: they carry the frame
+const SURFACE = {
+  parthenon: 'marble', pantheon: 'stone', notreDame: 'stone', duomo: 'brick', caravel: 'wood', violin: 'wood', column: 'marble',
+};
+const REAL_SIZE = { saturnV: 1.35, hubble: 0.95, camera: 1.0, igea: 0.95, planck: 0.95 };
 function fitModel(name, size, o = {}) {
-  const m = model(name, { height: size, color: o.color || C.gold, wireColor: o.wire || C.goldHot });
+  if (isReal(name)) size *= REAL_SIZE[name];
+  const m = isReal(name)
+    ? realModel(name, { height: size, color: o.color || C.gold, wireColor: o.wire || C.goldHot })
+    : model(name, { height: size, color: o.color || C.gold, wireColor: o.wire || C.goldHot });
+  if (!isReal(name) && o.solid !== false) solidify(m, SURFACE[name]);
   const s = Math.min(1, (o.maxW || size * 1.8) / Math.max(m.width, m.depth));
   m.scale.setScalar(s);
   if (o.dim) m.baseOps = m.baseOps.map((v) => v * o.dim);
@@ -151,8 +162,16 @@ const heroColor = (i) => (i % 3 === 1 ? [C.cyan, C.ice] : [C.gold, C.goldHot]);
 
 scene3('intro', async () => {
   SANS3 = new Font(await (await fetch('fonts/manrope-800.typeface.json')).json());
+  await loadReal('models/');
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 6000);
+  // studio light for the solid models: a soft room, a warm key, a violet rim
+  scene.environment = new THREE.PMREMGenerator(U.renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.5;
+  const key = new THREE.DirectionalLight(0xffd6a0, 1.7); key.position.set(3, 5, 4);
+  const rim = new THREE.DirectionalLight(0x8a7dff, 3.0); rim.position.set(-4, 2.5, -5);
+  const rim2 = new THREE.DirectionalLight(0xffb060, 1.6); rim2.position.set(5, 1, -4);
+  scene.add(key, rim, rim2);
   const V = new THREE.Vector3();
   const toScreen = (p) => { V.copy(p).project(camera); return [(V.x * 0.5 + 0.5) * W, (-V.y * 0.5 + 0.5) * H, V.z]; };
   function look(px, py, pz, tx, ty, tz, fov = 40, roll = 0) {
@@ -770,8 +789,8 @@ scene3('intro', async () => {
       const pw = pill(ctx, year, 96, 360, seg(u, 0.02, 0.12) * out);
       sansText(ctx, kick, 96 + pw + 20, 358, 19, { weight: 700, spacing: 6, color: '#b9c4ff', alpha: seg(u, 0.05, 0.15) * out });
       riseText(ctx, head, 90, 500, 104, seg(u, 0.03, 0.4), { grad: true, alpha: out, spacing: -3, maxW: 880 });
-      sansText(ctx, counters(val, seg(u, 0.12, 0.8)), 96, 650, 88, { weight: 800, alpha: seg(u, 0.1, 0.2) * out });
-      sansText(ctx, unit.toUpperCase(), 100, 694, 19, { weight: 700, spacing: 6, color: GOLD, alpha: seg(u, 0.15, 0.3) * out });
+      if (val != null) sansText(ctx, counters(val, seg(u, 0.12, 0.8)), 96, 650, 88, { weight: 800, alpha: seg(u, 0.1, 0.2) * out });
+      sansText(ctx, val == null ? unit : unit.toUpperCase(), 100, val == null ? 640 : 694, val == null ? 34 : 19, { weight: 700, spacing: val == null ? 1 : 6, color: GOLD, alpha: seg(u, 0.15, 0.3) * out });
       ctx.save(); ctx.globalAlpha = out; ctx.fillStyle = GOLD; ctx.fillRect(96, 575, 260 * E.expoOut(seg(u, 0.06, 0.4)), 3); ctx.restore();
       // progress ticks
       ctx.save(); for (let j = 0; j < HEROES.length; j++) { ctx.globalAlpha = j === i ? 1 : 0.5; ctx.fillStyle = j <= i ? GOLD : 'rgba(255,255,255,0.25)'; ctx.fillRect(96 + j * 30, H - 100, 22, j === i ? 5 : 3); } ctx.restore();

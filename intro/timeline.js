@@ -16,6 +16,7 @@ for (const k in SB) SEC[k] = bt(SB[k]);
 // hero shots, one every two beats: [model, headline, kicker, stat, unit, year label, era year]
 const HEROES = [
   ['parthenon', 'Built to last.', 'ATHENS', 2470, 'years standing', '447 BC', -447],
+  ['igea', 'The human ideal.', 'CLASSICAL SCULPTURE', null, 'Hygieia · marble', '400 BC', -400],
   ['colosseum', 'Engineered for crowds.', 'ROME', 50000, 'seats', '80 AD', 80],
   ['pantheon', 'Concrete, perfected.', 'ROME', 43, 'metre unreinforced dome', '126 AD', 126],
   ['notreDame', 'Light, in stone.', 'PARIS', 182, 'years to complete', '1163', 1163],
@@ -23,14 +24,13 @@ const HEROES = [
   ['press', 'Knowledge, printed.', 'MAINZ', 20000000, 'books by 1500', '1440', 1440],
   ['caravel', 'The world, circled.', 'MAGELLAN–ELCANO', 3, 'years at sea', '1522', 1522],
   ['orrery', 'The Earth moves.', 'COPERNICUS', 6, 'planets set in motion', '1543', 1543],
-  ['galileoScope', 'The sky, magnified.', 'GALILEO', 20, '× magnification', '1609', 1609],
   ['wattEngine', 'Power, unleashed.', 'JAMES WATT', 75, '% less coal', '1776', 1776],
-  ['rocketLoco', 'Speed, on rails.', 'STEPHENSON', 47, 'km/h record', '1829', 1829],
+  ['camera', 'Light, captured.', 'NIÉPCE · DAGUERRE', 8, 'hour first exposure', '1826', 1826],
   ['eiffel', 'Iron, elevated.', 'PARIS', 300, 'metres tall', '1889', 1889],
+  ['planck', 'The quantum age.', 'MAX PLANCK', null, 'h = 6.626 × 10⁻³⁴ J·s', '1900', 1900],
   ['wrightFlyer', 'Flight.', 'KITTY HAWK', 12, 'seconds that changed everything', '1903', 1903],
-  ['dna', 'The code of life.', 'CAMBRIDGE', 3200000000, 'base pairs read', '1953', 1953],
   ['saturnV', 'The Moon.', 'APOLLO 11', 384400, 'kilometres away', '1969', 1969],
-  ['networkGlobe', 'Connected.', 'CERN', 5500000000, 'people online', '1991', 1991],
+  ['hubble', 'The universe, revealed.', 'HUBBLE', 1600000, 'observations and counting', '1990', 1990],
 ];
 const FEATURES = [
   ['vitruvian', 'PHILOSOPHY'], ['triumphalArch', 'LAW'], ['violin', 'ART'], ['galileoScope', 'SCIENCE'],
