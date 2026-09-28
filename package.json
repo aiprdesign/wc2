@@ -8,6 +8,7 @@
     "serve": "node -e \"import('./tools/serve.mjs').then(m=>m.serve(process.cwd(),8080)).then(()=>console.log('http://127.0.0.1:8080'))\"",
     "stills": "node tools/stills.mjs",
     "render": "node tools/render.mjs out/the-inheritance.mp4",
+    "render:intro": "node tools/render.mjs out/western-civilization-intro.mp4 --film intro",
     "render:chronicle": "node tools/render.mjs out/three-thousand-years.mp4 --film chronicle",
     "render:3d": "node tools/render.mjs out/the-inheritance-3d.mp4 --film film3d"
   },

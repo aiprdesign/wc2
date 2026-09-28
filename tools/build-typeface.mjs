@@ -30,14 +30,14 @@ for (const ch of chars) {
 // glyph.path is in font units, y-up, which is what the typeface format expects
 const json = {
   glyphs,
-  familyName: 'Cinzel',
+  familyName: process.argv[5] || 'Cinzel',
   ascender: r(font.ascender),
   descender: r(font.descender),
   underlinePosition: 0,
   underlineThickness: 0,
   boundingBox: { yMin: r(font.tables.head.yMin), xMin: r(font.tables.head.xMin), yMax: r(font.tables.head.yMax), xMax: r(font.tables.head.xMax) },
   resolution: 1000,
-  original_font_information: { copyright: 'Copyright 2020 The Cinzel Project Authors', license: 'SIL Open Font License 1.1' },
+  original_font_information: { copyright: 'OFL font', license: 'SIL Open Font License 1.1' },
 };
 fs.writeFileSync(out, JSON.stringify(json));
 console.log(`${Object.keys(glyphs).length} glyphs -> ${out}`);

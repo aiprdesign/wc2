@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Western Civilization</title>
+<style>
+  @font-face { font-family: "Manrope"; font-weight: 500; src: url("fonts/manrope-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Manrope"; font-weight: 700; src: url("fonts/manrope-latin-700-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Manrope"; font-weight: 800; src: url("fonts/manrope-latin-800-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cinzel"; font-weight: 400; src: url("../film/fonts/cinzel-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cinzel"; font-weight: 600; src: url("../film/fonts/cinzel-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cormorant Garamond"; font-weight: 400; src: url("../film/fonts/cormorant-garamond-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cormorant Garamond"; font-weight: 500; src: url("../film/fonts/cormorant-garamond-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Cormorant Garamond"; font-style: italic; font-weight: 400; src: url("../film/fonts/cormorant-garamond-latin-400-italic.woff2") format("woff2"); }
+  @font-face { font-family: "Cormorant Garamond"; font-style: italic; font-weight: 500; src: url("../film/fonts/cormorant-garamond-latin-500-italic.woff2") format("woff2"); }
+
+  :root {
+    color-scheme: dark;
+    --ground: #030304;
+    --ink: #efe4cc;
+    --dim: #9d927d;
+    --gold: #ffc36a;
+    --rule: rgba(239, 228, 204, 0.16);
+    --cap: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+    --serif: "Cormorant Garamond", Garamond, "Times New Roman", serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding-inline: 0;
+  }
+  .frame { position: relative; width: min(100%, calc((100vh - 60px) * 16 / 9)); aspect-ratio: 16 / 9; max-width: 100%; }
+  .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  canvas#gl { background: #000; }
+  .gate {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.35), rgba(0,0,0,0.85));
+    padding-inline: 16px;
+    text-align: center;
+  }
+  .gate-inner { display: grid; gap: 18px; justify-items: center; max-width: 36rem; }
+  .gate h1 {
+    font-family: var(--cap);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 5vw, 3.2rem);
+    letter-spacing: 0.32em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .gate p { margin: 0; color: var(--dim); font-style: italic; font-size: clamp(1rem, 2.4vw, 1.3rem); }
+  .gate button {
+    font-family: var(--cap);
+    font-size: 0.95rem;
+    letter-spacing: 0.24em;
+    color: #120c05;
+    background: var(--gold);
+    border: 0;
+    padding: 14px 28px 13px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .gate button:focus-visible, .bar button:focus-visible, .bar input:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  .gate .status { min-height: 1.4em; font-size: 0.95rem; }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--rule);
+    background: #050506;
+    font-family: var(--cap);
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+  }
+  .bar button {
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    font: inherit;
+    letter-spacing: inherit;
+    padding: 6px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .bar button[aria-pressed="false"] { color: var(--dim); }
+  .bar input[type="range"] { flex: 1; min-width: 60px; accent-color: var(--gold); }
+  .time { font-variant-numeric: tabular-nums; color: var(--dim); white-space: nowrap; }
+  .chapter { color: var(--gold); white-space: nowrap; min-width: 8.5em; }
+  @media (max-width: 640px) {
+    .chapter, #fs { display: none; }
+    .bar { gap: 8px; }
+  }
+  body.export .bar, body.export .gate { display: none !important; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="frame">
+    <canvas id="gl" width="1920" height="1080" aria-label="The Inheritance, a 3D motion-graphics film"></canvas>
+    <canvas id="hud" width="1920" height="1080" aria-hidden="true"></canvas>
+  </div>
+  <div class="gate" id="gate">
+    <div class="gate-inner">
+      <h1>Western Civilization</h1>
+      <p>Three thousand years of achievement, in sixty seconds.</p>
+      <button id="start" type="button">Play with sound</button>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+</div>
+<div class="bar">
+  <button id="play" type="button" aria-label="Play">Play</button>
+  <span class="time" id="time">0:00 / 0:00</span>
+  <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position in film">
+  <span class="chapter" id="chapter"></span>
+  <button id="cc" type="button" aria-pressed="true">Captions</button>
+  <button id="snd" type="button" aria-pressed="true">Sound</button>
+  <button id="fs" type="button">Full screen</button>
+</div>
+
+<script src="../film/data/earth.js"></script>
+<script src="../film/js/core.js"></script>
+<script src="timeline.js"></script>
+<script src="../film/js/art.js"></script>
+<script src="../film/js/engine.js"></script>
+<script src="../film/js/score.js"></script>
+<script src="score.js"></script>
+<script type="importmap">
+{ "imports": { "three": "../film3d/vendor/three.module.js", "three/addons/": "../film3d/vendor/addons/" } }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
